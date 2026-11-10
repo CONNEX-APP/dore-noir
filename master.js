@@ -361,7 +361,7 @@ function finEdit() {
   hooks.onMapClick = null; $('edit-panel').hidden = true; $('panel-retour').hidden = false; setSelection([]);
 }
 function sauverEdit() {
-  const t = edit.trace;
+  const t = edit.trace; if (!t.id) t.id = uid('t');
   queue({ type: 'trace', id: t.id, data: { nom: t.nom, type: t.type, visibilite: t.visibilite || 'tous', coords: edit.coords } });
   finEdit(); toast('Tracé modifié.'); prefetchTraceTiles();
 }
