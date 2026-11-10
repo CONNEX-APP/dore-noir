@@ -1,6 +1,6 @@
 /* Domaine du Doré Noir — carte hors ligne, guidage, livre, mode Master */
 'use strict';
-const APP_VERSION = '0.3.9';
+const APP_VERSION = '0.3.10';
 const API = 'https://script.google.com/macros/s/AKfycbzps51_8A3kFMwmofGVydBUbukRxK7kiQ9IEzzbV3s0TijmRa27ITe81BEbBBuK4HTaDQ/exec';
 const CHALET = [-73.942520, 47.096700];
 const TILEJSON = 'https://tiles.openfreemap.org/planet';
@@ -525,8 +525,10 @@ function registerSW() {
   if (!('serviceWorker' in navigator)) return;
   navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((reg) => {
     // À l'ouverture de l'app (30 premières secondes), la mise à jour s'applique toute seule; ensuite on demande.
+    let ouvertA = 0; // l'app revient au premier plan = « ouverture » sur iPhone
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { ouvertA = performance.now(); if (navigator.onLine) reg.update().catch(() => {}); } });
     const prompt = (w) => {
-      if (performance.now() < 30000 && !guiding && !window.recording) { w.postMessage('skipWaiting'); return; }
+      if (performance.now() - ouvertA < 30000 && !guiding && !window.recording) { w.postMessage('skipWaiting'); return; }
       toast('Nouvelle version disponible', { label: 'Mettre à jour', fn: () => w.postMessage('skipWaiting') });
     };
     window.verifierMaj = async () => {
