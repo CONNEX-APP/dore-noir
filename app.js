@@ -1,6 +1,6 @@
 /* Domaine du Doré Noir — carte hors ligne, guidage, livre, mode Master */
 'use strict';
-const APP_VERSION = '0.3.7';
+const APP_VERSION = '0.3.8';
 const API = 'https://script.google.com/macros/s/AKfycbzps51_8A3kFMwmofGVydBUbukRxK7kiQ9IEzzbV3s0TijmRa27ITe81BEbBBuK4HTaDQ/exec';
 const CHALET = [-73.942520, 47.096700];
 const TILEJSON = 'https://tiles.openfreemap.org/planet';
@@ -170,8 +170,8 @@ function buildStyle() {
       { id: 'noms-lacs', type: 'symbol', source: 'omt', 'source-layer': 'water_name', minzoom: 11,
         layout: { 'text-field': ['get', 'name'], 'text-font': [FONT], 'text-size': 12, 'text-letter-spacing': 0.1 },
         paint: { 'text-color': '#7FA6B5', 'text-halo-color': '#14170F', 'text-halo-width': 1.2 } },
-      { id: 'noms-perso', type: 'symbol', source: 'noms', minzoom: 11,
-        layout: { 'text-field': ['get', 'name'], 'text-font': [FONT], 'text-size': 12, 'text-letter-spacing': 0.1, 'text-allow-overlap': true },
+      { id: 'noms-perso', type: 'symbol', source: 'noms', minzoom: 13.5,
+        layout: { 'text-field': ['get', 'name'], 'text-font': [FONT], 'text-size': 12, 'text-letter-spacing': 0.1, 'text-max-width': 8 },
         paint: { 'text-color': '#7FA6B5', 'text-halo-color': '#14170F', 'text-halo-width': 1.2 } },
       { id: 'lieux', type: 'symbol', source: 'omt', 'source-layer': 'place',
         layout: { 'text-field': ['get', 'name'], 'text-font': [FONT], 'text-size': 13 },
