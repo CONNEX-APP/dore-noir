@@ -1,7 +1,7 @@
 /* Domaine du Doré Noir — carte hors ligne, guidage, livre, mode Master */
 'use strict';
-const APP_VERSION = '0.2.0';
-const API = 'COLLER_URL_SCRIPT_ICI';
+const APP_VERSION = '0.2.1';
+const API = 'https://script.google.com/macros/s/AKfycbzps51_8A3kFMwmofGVydBUbukRxK7kiQ9IEzzbV3s0TijmRa27ITe81BEbBBuK4HTaDQ/exec';
 const CHALET = [-73.942520, 47.096700];
 const TILEJSON = 'https://tiles.openfreemap.org/planet';
 const GLYPHS = 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf';
