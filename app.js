@@ -1,6 +1,6 @@
 /* Domaine du Doré Noir — carte hors ligne, guidage, livre, mode Master */
 'use strict';
-const APP_VERSION = '0.3.4';
+const APP_VERSION = '0.3.5';
 const API = 'https://script.google.com/macros/s/AKfycbzps51_8A3kFMwmofGVydBUbukRxK7kiQ9IEzzbV3s0TijmRa27ITe81BEbBBuK4HTaDQ/exec';
 const CHALET = [-73.942520, 47.096700];
 const TILEJSON = 'https://tiles.openfreemap.org/planet';
@@ -512,7 +512,17 @@ function dialog(title, fields, buttons) {
 function registerSW() {
   if (!('serviceWorker' in navigator)) return;
   navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((reg) => {
-    const prompt = (w) => toast('Nouvelle version disponible', { label: 'Mettre à jour', fn: () => w.postMessage('skipWaiting') });
+    // À l'ouverture de l'app (30 premières secondes), la mise à jour s'applique toute seule; ensuite on demande.
+    const prompt = (w) => {
+      if (performance.now() < 30000 && !guiding && !window.recording) { w.postMessage('skipWaiting'); return; }
+      toast('Nouvelle version disponible', { label: 'Mettre à jour', fn: () => w.postMessage('skipWaiting') });
+    };
+    window.verifierMaj = async () => {
+      if (!navigator.onLine) { toast('Pas de réseau : impossible de vérifier.'); return; }
+      toast('Recherche d\'une mise à jour…');
+      await reg.update().catch(() => {});
+      setTimeout(() => { if (reg.waiting) reg.waiting.postMessage('skipWaiting'); else if (!reg.installing) toast('L\'app est à jour (V' + APP_VERSION + ').'); }, 2500);
+    };
     if (reg.waiting && navigator.serviceWorker.controller) prompt(reg.waiting);
     reg.addEventListener('updatefound', () => {
       const w = reg.installing;
@@ -536,6 +546,7 @@ async function boot() {
   $('compass-btn').onclick = enableCompass;
   $('g-start').onclick = toggleGuide;
   $('st-offline').onclick = () => { if (!store.get('carteOK')) showAccueil(); };
+  $('st-version').onclick = () => { if (window.verifierMaj) window.verifierMaj(); };
   $('btn-locate').onclick = () => {
     followMe = !followMe; $('btn-locate').classList.toggle('on', followMe);
     if (!lastPos) { startGps(); toast('Recherche du GPS…'); } else if (followMe) map.easeTo({ center: lastPos, zoom: Math.max(map.getZoom(), 14) });
