@@ -1,6 +1,6 @@
 /* Domaine du Doré Noir — carte hors ligne v0.1 */
 'use strict';
-const APP_VERSION = '0.1.1';
+const APP_VERSION = '0.1.2';
 const CHALET = [-73.942520, 47.096700];
 const TILEJSON = 'https://tiles.openfreemap.org/planet';
 const GLYPHS = 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf';
