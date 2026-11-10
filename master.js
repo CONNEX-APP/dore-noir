@@ -223,8 +223,19 @@ function suivreChemin(a, b, sauf) {
   const key = (p) => p[0].toFixed(5) + ',' + p[1].toFixed(5);
   const pad = Math.max(Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1])) * 0.6 + 0.002;
   const minLon = Math.min(a[0], b[0]) - pad, maxLon = Math.max(a[0], b[0]) + pad, minLat = Math.min(a[1], b[1]) - pad, maxLat = Math.max(a[1], b[1]) + pad;
-  const nodes = new Map(), adj = new Map();
-  const node = (p) => { const k = key(p); if (!nodes.has(k)) { nodes.set(k, p); adj.set(k, []); } return k; };
+  const nodes = new Map(), adj = new Map(), grille = new Map();
+  const cell = (p) => [Math.floor(p[0] / 0.00004), Math.floor(p[1] / 0.00003)];
+  // fusionne les sommets à moins de 2,5 m (les morceaux de chemins coupés aux bords des tuiles se rejoignent)
+  const node = (p) => {
+    const [cx, cy] = cell(p);
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+      const l = grille.get((cx + dx) + ':' + (cy + dy)); if (!l) continue;
+      for (const k of l) if (dist(nodes.get(k), p) < 2.5) return k;
+    }
+    const k = key(p) + '#' + nodes.size; nodes.set(k, p); adj.set(k, []);
+    const g = cx + ':' + cy; if (!grille.has(g)) grille.set(g, []); grille.get(g).push(k);
+    return k;
+  };
   const link = (p, q) => { const i = node(p), j = node(q); if (i === j) return; const w = dist(p, q); adj.get(i).push([j, w]); adj.get(j).push([i, w]); };
   const near = (p) => p[0] >= minLon && p[0] <= maxLon && p[1] >= minLat && p[1] <= maxLat;
   // insérer a et b dans les segments qui les portent
@@ -239,8 +250,7 @@ function suivreChemin(a, b, sauf) {
       let prev = s; mids.forEach((m) => { link(prev, m); prev = m; }); link(prev, e);
     }
   });
-  const A = key(a), B = key(b);
-  if (!adj.has(A) || !adj.has(B)) return null;
+  const A = node(a), B = node(b);
   const D = new Map([[A, 0]]), from = new Map(), done = new Set(), open = [[0, A]];
   while (open.length) {
     open.sort((x, y) => x[0] - y[0]); const [d, k] = open.shift();
@@ -518,9 +528,24 @@ function masterHistoireActions(h) {
   const a = document.createElement('button'); a.type = 'button'; a.className = 'btn-sm';
   a.textContent = h.approuve ? 'Retirer du livre' : 'Approuver';
   a.onclick = () => queue({ type: 'histoire', id: h.id, data: { approuve: !h.approuve } });
+  const ed = document.createElement('button'); ed.type = 'button'; ed.className = 'btn-sm'; ed.textContent = 'Modifier';
+  ed.onclick = () => modifierHistoire(h);
   const s = document.createElement('button'); s.type = 'button'; s.className = 'btn-sm danger'; s.textContent = 'Supprimer';
   s.onclick = async () => { if (await confirmer('Supprimer cette histoire?')) queue({ type: 'histoire', id: h.id, supprimer: true }); };
-  d.append(a, s); return d;
+  d.append(a, ed, s); return d;
+}
+async function modifierHistoire(h) {
+  const r = await dialog('Modifier l\'histoire', [
+    { name: 'auteur', label: 'Écrit par', required: true, value: h.auteur || '' },
+    { name: 'date', label: 'Date du séjour', type: 'date', required: true, value: String(h.date || '').slice(0, 10) },
+    { name: 'titre', label: 'Titre', value: h.titre || '' },
+    { name: 'texte', label: 'Histoire', type: 'textarea', value: h.texte || '' },
+    { name: 'categorie', label: 'Catégorie', type: 'select', options: { peche: 'Pêche', chasse: 'Chasse', chalet: 'Chalet' }, value: h.categorie || 'chalet' },
+    { name: 'approuve', label: 'Visible dans le livre', type: 'checkbox', value: !!h.approuve },
+  ]);
+  if (!r) return;
+  queue({ type: 'histoire', id: h.id, data: { auteur: r.auteur, date: r.date, titre: r.titre, texte: r.texte, categorie: r.categorie, approuve: r.approuve } });
+  toast('Histoire modifiée.');
 }
 
 /* ---------- Écran Master ---------- */

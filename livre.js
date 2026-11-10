@@ -42,8 +42,13 @@ function compressImage(file, max = 1600, q = 0.75) {
   });
 }
 
+const aujourdhui = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 function fmtDate(iso) {
-  try { return new Date(iso).toLocaleDateString('fr-CA', { day: 'numeric', month: 'long', year: 'numeric' }); } catch (e) { return ''; }
+  try {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso));
+    const d = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(iso);
+    return d.toLocaleDateString('fr-CA', { day: 'numeric', month: 'long', year: 'numeric' });
+  } catch (e) { return ''; }
 }
 
 async function renderLivre() {
@@ -66,7 +71,7 @@ async function renderLivre() {
     }
     const body = document.createElement('div'); body.className = 'story-body';
     const meta = document.createElement('div'); meta.className = 'row-between';
-    const m1 = document.createElement('span'); m1.className = 'mono muted xsmall'; m1.textContent = fmtDate(h.date).toUpperCase() + ' · PAR ' + String(h.auteur || '').toUpperCase();
+    const m1 = document.createElement('span'); m1.className = 'mono muted xsmall'; m1.textContent = 'SÉJOUR DU ' + fmtDate(h.date).toUpperCase() + ' · PAR ' + String(h.auteur || '').toUpperCase();
     const m2 = document.createElement('span'); m2.className = 'tag ' + (h.categorie || 'chalet'); m2.textContent = h.enAttente ? 'EN ATTENTE D\'ENVOI' : h.approuve === false ? 'À APPROUVER' : (CATS[h.categorie] || 'Chalet').toUpperCase();
     meta.append(m1, m2); body.appendChild(meta);
     if (h.titre) { const t = document.createElement('h3'); t.className = 'cond'; t.textContent = h.titre; body.appendChild(t); }
@@ -91,6 +96,7 @@ function openPhoto(src) {
 async function ecrireHistoire() {
   const r = await dialog('Raconte ton séjour', [
     { name: 'auteur', label: 'Écrit par', required: true, placeholder: 'Ton nom ou ta famille', value: store.get('auteur') || '', autocomplete: 'name' },
+    { name: 'date', label: 'Date du séjour', type: 'date', value: aujourdhui(), required: true },
     { name: 'titre', label: 'Titre', placeholder: 'Ex. : Premier doré de la saison' },
     { name: 'texte', label: 'Ton histoire', type: 'textarea', placeholder: 'Qu\'est-ce qui s\'est passé?' },
     { name: 'categorie', label: 'Catégorie', type: 'select', options: { peche: 'Pêche', chasse: 'Chasse', chalet: 'Chalet' } },
@@ -105,7 +111,7 @@ async function ecrireHistoire() {
   const photos = [];
   for (const f of Array.from(r.photos || []).slice(0, 6)) { try { photos.push(await compressImage(f)); } catch (e) {} }
   const h = {
-    id: uid('h'), date: new Date().toISOString(), auteur: r.auteur, titre: r.titre, texte: r.texte, categorie: r.categorie,
+    id: uid('h'), date: r.date || aujourdhui(), auteur: r.auteur, titre: r.titre, texte: r.texte, categorie: r.categorie,
     lon: r.gps && lastPos ? +lastPos[0].toFixed(6) : null, lat: r.gps && lastPos ? +lastPos[1].toFixed(6) : null, photos, site: r.site,
   };
   await idb.put(h);

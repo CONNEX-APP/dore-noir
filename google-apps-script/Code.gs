@@ -109,7 +109,7 @@ const photoUrl_ = (id) => 'https://drive.google.com/thumbnail?id=' + id + '&sz=w
 
 function histoire_(h, master) {
   return {
-    id: h.id, date: h.date instanceof Date ? h.date.toISOString() : String(h.date), auteur: h.auteur, titre: h.titre,
+    id: h.id, date: h.date instanceof Date ? Utilities.formatDate(h.date, Session.getScriptTimeZone(), 'yyyy-MM-dd') : String(h.date).replace(/^'/, '').slice(0, 10), auteur: h.auteur, titre: h.titre,
     texte: h.texte, categorie: h.categorie, lon: h.lon === '' ? null : Number(h.lon), lat: h.lat === '' ? null : Number(h.lat),
     photos: String(h.photos || '').split(',').filter(String).map(photoUrl_),
     approuve: h.approuve === true,
@@ -170,7 +170,7 @@ function ajouterHistoire_(b) {
     return f.getId();
   });
   ecrire_('Histoires', {
-    id: id, date: b.date || new Date().toISOString(), auteur: auteur, titre: String(b.titre || '').slice(0, 120), texte: texte,
+    id: id, date: "'" + String(b.date || new Date().toISOString().slice(0, 10)).slice(0, 10), auteur: auteur, titre: String(b.titre || '').slice(0, 120), texte: texte,
     categorie: ['peche', 'chasse', 'chalet'].indexOf(b.categorie) >= 0 ? b.categorie : 'chalet',
     lon: b.lon || '', lat: b.lat || '', photos: ids.join(','), approuve: false, supprime: false,
   });
@@ -192,8 +192,13 @@ function appliquer_(op) {
       ecrire_('Reperes', op.supprimer ? { id: op.id, supprime: true, modifie: now } :
         { id: op.id, km: d.km, nom: d.nom, consigne: d.consigne, lon: d.lon, lat: d.lat, modifie: now, supprime: false });
       break;
-    case 'histoire':
-      ecrire_('Histoires', op.supprimer ? { id: op.id, supprime: true } : { id: op.id, approuve: d.approuve === true });
+    case 'histoire': {
+      if (op.supprimer) { ecrire_('Histoires', { id: op.id, supprime: true }); break; }
+      const o = { id: op.id };
+      ['auteur', 'titre', 'texte', 'categorie', 'date'].forEach((k) => { if (d[k] !== undefined) o[k] = (k === 'date' ? "'" : '') + String(d[k]).slice(0, k === 'texte' ? 5000 : 200); });
+      if (d.approuve !== undefined) o.approuve = d.approuve === true;
+      ecrire_('Histoires', o);
       break;
+    }
   }
 }
