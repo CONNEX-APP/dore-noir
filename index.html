@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#14170F">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Doré Noir">
+<title>Domaine du Doré Noir</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="vendor/maplibre-gl.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ACCUEIL -->
+<section id="accueil" class="screen" hidden>
+  <div class="acc-head">
+    <img src="icons/logo-complet.png" alt="Domaine du Doré Noir — Chalet Richard-Benny" class="acc-logo">
+    <span class="mono accent small">CARTE HORS LIGNE · LIVRE DU CHALET</span>
+  </div>
+  <div class="steps">
+    <div class="step" id="step-install">
+      <span class="step-n">1</span>
+      <div class="step-body">
+        <strong>AJOUTER À L'ÉCRAN D'ACCUEIL</strong>
+        <p>Safari ou Chrome : bouton <b>Partager</b> <svg class="ico-inline" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 12v8h14v-8"/></svg> puis <b>Sur l'écran d'accueil</b>. Ensuite, ouvre l'app depuis son icône.</p>
+      </div>
+    </div>
+    <div class="step" id="step-dl">
+      <span class="step-n">2</span>
+      <div class="step-body">
+        <strong>TÉLÉCHARGER LA CARTE</strong>
+        <p>Route de Saint-Michel, sentiers et secteur du chalet. À faire avant de perdre le signal.</p>
+        <div class="bar"><div class="bar-fill" id="dl-bar"></div></div>
+        <div class="row-between">
+          <span class="mono muted small" id="dl-txt">Pas encore téléchargée</span>
+          <button class="btn-sm" id="dl-btn" type="button">Télécharger</button>
+        </div>
+      </div>
+    </div>
+    <div class="step" id="step-gps">
+      <span class="step-n">3</span>
+      <div class="step-body">
+        <strong>PERMETTRE LA LOCALISATION</strong>
+        <p>Pour te voir sur la carte et te guider depuis l'Esso.</p>
+        <button class="btn-sm" id="gps-btn" type="button">Activer</button>
+      </div>
+    </div>
+  </div>
+  <div class="acc-foot">
+    <button class="btn-primary" id="enter-btn" type="button">ENTRER AU DOMAINE</button>
+  </div>
+</section>
+
+<!-- APP -->
+<section id="app" class="screen" hidden>
+  <header class="topbar">
+    <img src="icons/embleme.png" alt="" class="tb-logo">
+    <div class="tb-title">
+      <span class="cond">DOMAINE DU DORÉ NOIR</span>
+      <span class="mono muted xsmall" id="tb-sub">LAC BOUCHARD · CARTE</span>
+    </div>
+  </header>
+  <div class="statusbar">
+    <span class="mono small" id="st-offline">…</span>
+    <span class="mono muted xsmall" id="st-version"></span>
+  </div>
+
+  <div id="view-carte" class="view">
+    <div id="map"></div>
+    <div class="map-ctrl">
+      <button class="ctrl" id="btn-locate" type="button" aria-label="Centrer sur ma position">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.5" class="fill"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+      </button>
+      <button class="ctrl" id="btn-chalet" type="button" aria-label="Voir le chalet">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7M6 10v10h12V10"/><path d="M10 20v-5h4v5"/></svg>
+      </button>
+    </div>
+    <div class="gps-box mono" id="gps-box" hidden></div>
+    <div class="zone-alert" id="zone-alert" hidden>Tu sors de la zone de la carte hors ligne</div>
+
+    <!-- Retour au chalet -->
+    <div class="panel" id="panel-retour">
+      <div class="retour">
+        <div class="arrow-wrap"><svg id="retour-arrow" viewBox="0 0 48 48" aria-hidden="true"><path d="M24 4l12 36-12-8-12 8z"/></svg></div>
+        <div class="retour-txt">
+          <span class="mono accent xsmall">RETOUR AU CHALET</span>
+          <span class="cond big" id="retour-dist">—</span>
+          <span class="small muted" id="retour-dir">En attente du GPS</span>
+        </div>
+        <button class="btn-sm" id="compass-btn" type="button">Boussole</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="view-guidage" class="view" hidden>
+    <div class="guide">
+      <div class="guide-top">
+        <span class="mono accent xsmall">GUIDAGE · ESSO → CHALET</span>
+        <span class="mono muted xsmall" id="g-total"></span>
+      </div>
+      <div class="guide-alert" id="g-off" hidden></div>
+      <div class="guide-next">
+        <span class="mono muted xsmall">PROCHAIN REPÈRE</span>
+        <span class="cond huge" id="g-next-dist">—</span>
+        <span class="cond big" id="g-next-name">—</span>
+        <span class="small" id="g-next-txt"></span>
+      </div>
+      <div class="guide-grid">
+        <div><span class="mono muted xsmall">POSITION</span><span class="mono big2" id="g-km">—</span></div>
+        <div><span class="mono muted xsmall">RESTANT</span><span class="mono big2" id="g-rest">—</span></div>
+        <div><span class="mono muted xsmall">PRÉCISION</span><span class="mono big2" id="g-acc">—</span></div>
+      </div>
+      <div class="bar"><div class="bar-fill" id="g-bar"></div></div>
+      <ol class="reperes" id="g-list"></ol>
+      <div class="guide-actions">
+        <button class="btn-primary" id="g-start" type="button">DÉMARRER LE GUIDAGE</button>
+        <label class="toggle"><input type="checkbox" id="g-voice" checked> Voix</label>
+      </div>
+      <p class="small muted">Garde l'écran allumé et le téléphone branché : iPhone coupe le GPS des web apps quand l'écran se verrouille.</p>
+    </div>
+  </div>
+
+  <div id="view-livre" class="view" hidden>
+    <div class="livre">
+      <span class="mono accent xsmall">JOURNAL DE CAMP</span>
+      <h1 class="cond">LE LIVRE DU DORÉ NOIR</h1>
+      <div class="card">
+        <strong class="cond">BIENTÔT</strong>
+        <p class="small">Le livre (histoires et photos des invités) arrive dans la prochaine version.</p>
+      </div>
+    </div>
+  </div>
+
+  <nav class="tabs">
+    <button class="tab active" data-view="carte" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/></svg>CARTE</button>
+    <button class="tab" data-view="guidage" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l7 19-7-4-7 4z"/></svg>GUIDAGE</button>
+    <button class="tab" data-view="livre" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5c3-1 6-1 8 1 2-2 5-2 8-1v14c-3-1-6-1-8 1-2-2-5-2-8-1V5z"/><path d="M12 6v14"/></svg>LIVRE</button>
+  </nav>
+</section>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="vendor/maplibre-gl.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
