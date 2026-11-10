@@ -109,7 +109,7 @@ const ICONS = {
   cache: '<path d="M7 21l2-11h6l2 11M9 10V5h6v5M8 15h8"/>',
   saline: '<path d="M5 15h14l-2 5H7z"/><path d="M8 15l2-6h4l2 6"/>',
   fourche: '<path d="M12 21v-8M12 13L6 4M12 13l6-9"/>',
-  esso: '<path d="M6 21V5a2 2 0 012-2h6a2 2 0 012 2v16M5 21h12M8 8h6"/><path d="M16 9l3 3v6a1.5 1.5 0 01-3 0v-3"/>',
+  depart: '<path d="M6 21V4M6 4h11l-2 4 2 4H6"/>',
   lieu: '<path d="M12 21s-7-6.5-7-12a7 7 0 0114 0c0 5.5-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/>',
 };
 function addMarkers() {
@@ -117,7 +117,7 @@ function addMarkers() {
     const k = f.properties.kind in ICONS ? f.properties.kind : 'lieu';
     const el = document.createElement('div');
     el.className = 'mk ' + k;
-    let label = f.properties.name.replace('Esso Saint-Michel-des-Saints', 'Esso St-Michel');
+    let label = f.properties.name.replace('Esso Saint-Michel-des-Saints', 'Esso St-Michel').replace('Départ — 500, rue des Aulnaies', 'Départ');
     el.innerHTML = '<div class="mk-ico"><svg viewBox="0 0 24 24" aria-hidden="true">' + ICONS[k] + '</svg></div><span class="mk-lbl"></span>';
     el.querySelector('.mk-lbl').textContent = label;
     el.title = f.properties.name;
@@ -243,7 +243,7 @@ function renderReperes(along = -1) {
     const li = document.createElement('li');
     if (along >= 0 && r.km * 1000 < along - 30) li.className = 'passe';
     li.innerHTML = '<span class="km"></span><span><b></b><br><span class="muted small"></span></span>';
-    li.querySelector('.km').textContent = 'KM ' + r.km.toFixed(1).replace('.', ',');
+    li.querySelector('.km').textContent = r.km.toFixed(1).replace('.', ',') + ' km';
     li.querySelector('b').textContent = r.nom;
     li.querySelector('.small').textContent = r.consigne;
     ol.appendChild(li);
@@ -277,7 +277,7 @@ function updateGuide(pos) {
     off.textContent = 'Tu n\'es plus sur la route du chalet (à ' + fmtDist(s.d) + '). Reviens vers le tracé beige.';
     if (Date.now() - lastOffSpeak > 60000) { speak('Attention : vous n\'êtes plus sur la route du chalet.'); lastOffSpeak = Date.now(); }
   } else off.hidden = true;
-  $('g-km').textContent = 'KM ' + (s.along / 1000).toFixed(1).replace('.', ',');
+  $('g-km').textContent = fmtDist(s.along);
   $('g-rest').textContent = fmtDist(Math.max(0, total - s.along));
   $('g-bar').style.width = Math.min(100, s.along / total * 100) + '%';
   const next = route.reperes.find((r) => r.km * 1000 > s.along + 30);
