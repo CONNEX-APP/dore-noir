@@ -57,7 +57,7 @@ async function renderLivre() {
   const items = envois.map((e) => Object.assign({}, e, { enAttente: true, photos: e.photos || [] }))
     .concat((dyn.histoires || []).filter((h) => h.approuve !== false || window.masterNip))
     .filter((h) => filtreLivre === 'tout' || h.categorie === filtreLivre)
-    .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)));
   list.innerHTML = '';
   if (!items.length) {
     list.innerHTML = '<div class="card"><strong class="cond">Le livre est vide… pour l\'instant</strong><p class="small">Sois le premier à raconter ton séjour au Domaine!</p></div>';

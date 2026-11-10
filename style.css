@@ -118,6 +118,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .story{background:var(--bg2);border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .story-photos{display:flex;gap:2px;overflow-x:auto;scroll-snap-type:x mandatory;background:#232A1C}
 .story-photos img{height:200px;flex:0 0 auto;max-width:100%;object-fit:cover;scroll-snap-align:start;cursor:zoom-in}
+.story-photos img:first-child{margin-left:auto}.story-photos img:last-child{margin-right:auto}
 .story-body{padding:12px 14px;display:flex;flex-direction:column;gap:6px}
 .story-body h3{margin:0;font-size:22px;line-height:1.05}
 .story-body p{margin:0;color:var(--txt2);line-height:1.45;white-space:pre-line}
