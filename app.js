@@ -1,6 +1,6 @@
 /* Domaine du Doré Noir — carte hors ligne, guidage, livre, mode Master */
 'use strict';
-const APP_VERSION = '0.3.11';
+const APP_VERSION = '0.3.12';
 const API = 'https://script.google.com/macros/s/AKfycbzps51_8A3kFMwmofGVydBUbukRxK7kiQ9IEzzbV3s0TijmRa27ITe81BEbBBuK4HTaDQ/exec';
 const CHALET = [-73.942520, 47.096700];
 const TILEJSON = 'https://tiles.openfreemap.org/planet';
@@ -547,6 +547,17 @@ function registerSW() {
   let reloaded = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (!reloaded) { reloaded = true; location.reload(); } });
 }
+
+// iPhone (app sur l'écran d'accueil) : après le clavier ou une rotation, la hauteur peut rester mal calculée
+// et laisser une bande vide sous les onglets. On recale sur la vraie hauteur visible.
+function caleHauteur() {
+  document.documentElement.style.setProperty('--app-h', window.innerHeight + 'px');
+  if (window.scrollY) window.scrollTo(0, 0);
+}
+['resize', 'orientationchange', 'pageshow'].forEach((ev) => window.addEventListener(ev, () => setTimeout(caleHauteur, 60)));
+document.addEventListener('focusout', () => setTimeout(caleHauteur, 120));
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') setTimeout(caleHauteur, 60); });
+caleHauteur();
 
 async function boot() {
   let seed;
