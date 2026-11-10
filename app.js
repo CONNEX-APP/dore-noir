@@ -1,6 +1,6 @@
 /* Domaine du Doré Noir — carte hors ligne v0.1 */
 'use strict';
-const APP_VERSION = '0.1.3';
+const APP_VERSION = '0.1.4';
 const CHALET = [-73.942520, 47.096700];
 const TILEJSON = 'https://tiles.openfreemap.org/planet';
 const GLYPHS = 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf';
@@ -339,7 +339,7 @@ function toast(msg, action) {
 }
 function registerSW() {
   if (!('serviceWorker' in navigator)) return;
-  navigator.serviceWorker.register('sw.js').then((reg) => {
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((reg) => {
     const prompt = (w) => toast('Nouvelle version disponible', { label: 'Mettre à jour', fn: () => w.postMessage('skipWaiting') });
     if (reg.waiting && navigator.serviceWorker.controller) prompt(reg.waiting);
     reg.addEventListener('updatefound', () => {

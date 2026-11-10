@@ -1,5 +1,5 @@
 /* Service worker — Domaine du Doré Noir */
-const VERSION = '0.1.3';
+const VERSION = '0.1.4';
 const APP_CACHE = 'app-' + VERSION;
 const TILE_CACHE = 'tuiles-v1';
 const FONT_CACHE = 'polices-v1';
@@ -11,7 +11,7 @@ const SHELL = [
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(APP_CACHE).then((c) => c.addAll(SHELL)));
+  e.waitUntil(caches.open(APP_CACHE).then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: 'reload' })))));
 });
 self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys().then((keys) => Promise.all(
