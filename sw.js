@@ -1,12 +1,13 @@
 /* Service worker — Domaine du Doré Noir */
-const VERSION = '0.1.4';
+const VERSION = '0.2.0';
 const APP_CACHE = 'app-' + VERSION;
 const TILE_CACHE = 'tuiles-v1';
 const FONT_CACHE = 'polices-v1';
+const PHOTO_CACHE = 'photos-v1';
 const SHELL = [
-  './', 'index.html', 'style.css', 'app.js', 'manifest.webmanifest',
+  './', 'index.html', 'style.css', 'app.js', 'livre.js', 'master.js', 'manifest.webmanifest',
   'vendor/maplibre-gl.js', 'vendor/maplibre-gl.css',
-  'data/carte.geojson', 'data/route.json', 'data/zone-hors-ligne.json', 'data/tiles.json',
+  'data/base.geojson', 'data/seed.json', 'data/route.json', 'data/zone-hors-ligne.json', 'data/tiles.json',
   'icons/logo-complet.png', 'icons/embleme.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
 ];
 
@@ -39,6 +40,10 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url);
   if (url.hostname === 'tiles.openfreemap.org' && url.pathname !== '/planet') {
     e.respondWith(cacheFirst(req, TILE_CACHE));
+    return;
+  }
+  if ((url.hostname === 'drive.google.com' && url.pathname === '/thumbnail') || url.hostname.endsWith('googleusercontent.com')) {
+    e.respondWith(cacheFirst(req, PHOTO_CACHE));
     return;
   }
   if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {

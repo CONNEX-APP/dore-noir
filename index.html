@@ -86,6 +86,27 @@
     <div class="gps-box mono" id="gps-box" hidden></div>
     <div class="zone-alert" id="zone-alert" hidden>Tu sors de la zone de la carte hors ligne</div>
 
+    <div class="crosshair" id="crosshair" hidden><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 4v14M24 30v14M4 24h14M30 24h14"/><circle cx="24" cy="24" r="3"/></svg></div>
+    <div class="float-bar" id="float-bar" hidden><span></span><div class="row-between"><button class="btn-sm" type="button">Annuler</button><button class="btn-sm on" type="button">OK</button></div></div>
+
+    <!-- Enregistrement d'un tracé (Master) -->
+    <div class="panel" id="rec-panel" hidden>
+      <div class="row-between"><span class="mono accent xsmall"><span class="rec-dot"></span> <span id="rec-state">REC</span> · ENREGISTREMENT DU TRACÉ</span><span class="mono muted xsmall" id="rec-acc">—</span></div>
+      <div class="rec-grid"><div><span class="mono muted xsmall">DISTANCE</span><span class="mono big2" id="rec-dist">0 m</span></div><div><span class="mono muted xsmall">DURÉE</span><span class="mono big2" id="rec-time">00:00:00</span></div></div>
+      <div class="rec-btns"><button class="btn-sm" id="rec-point" type="button">+ Point</button><button class="btn-sm" id="rec-pause" type="button">Pause</button><button class="btn-primary" id="rec-stop" type="button">TERMINER</button></div>
+      <p class="xsmall muted">Garde l'écran allumé : iPhone coupe le GPS des web apps quand l'écran se verrouille.</p>
+    </div>
+
+    <!-- Modifier une section (Master) -->
+    <div class="panel" id="sec-panel" hidden>
+      <div class="row-between"><span class="mono accent xsmall">MODIFIER UN TRACÉ</span><button class="btn-sm" id="sec-fermer" type="button">Fermer</button></div>
+      <strong class="cond big" id="sec-nom"></strong>
+      <span class="mono small" id="sec-len"></span>
+      <label class="fld"><span>Début de la section (rouge)</span><input type="range" id="sec-a" min="0" step="1"></label>
+      <label class="fld"><span>Fin de la section</span><input type="range" id="sec-b" min="0" step="1"></label>
+      <div class="sec-btns"><button class="btn-sm danger" id="sec-suppr" type="button">Supprimer la section</button><button class="btn-sm" id="sec-pied" type="button">À pied seulement</button><button class="btn-sm" id="sec-prive" type="button">Moi seulement</button><button class="btn-sm danger" id="sec-tout" type="button">Supprimer tout</button></div>
+    </div>
+
     <!-- Retour au chalet -->
     <div class="panel" id="panel-retour">
       <div class="retour">
@@ -132,10 +153,33 @@
     <div class="livre">
       <span class="mono accent xsmall">JOURNAL DE CAMP</span>
       <h1 class="cond">LE LIVRE DU DORÉ NOIR</h1>
-      <div class="card">
-        <strong class="cond">BIENTÔT</strong>
-        <p class="small">Le livre (histoires et photos des invités) arrive dans la prochaine version.</p>
+      <div class="chips" id="livre-chips"></div>
+      <div class="card warn-card small" id="livre-pending" hidden></div>
+      <div id="livre-list" class="story-list"></div>
+    </div>
+    <button class="fab" id="livre-ecrire" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>ÉCRIRE</button>
+  </div>
+
+  <div id="view-master" class="view" hidden>
+    <div class="master">
+      <div class="row-between"><span class="m-badge">MODE MASTER</span><button class="btn-sm" id="m-quit" type="button">Quitter</button></div>
+      <div class="card row-between"><span class="mono small" id="m-sync">—</span><button class="btn-sm" id="m-sync-btn" type="button">Synchroniser</button></div>
+      <h2 class="cond">TRACÉS</h2>
+      <div class="m-grid">
+        <button class="m-act" id="m-rec" type="button"><b>Enregistrer</b><span>au GPS</span></button>
+        <button class="m-act" id="m-gpx" type="button"><b>Importer</b><span>GPX ou KML</span></button>
+        <button class="m-act" id="m-section" type="button"><b>Modifier</b><span>supprimer une section</span></button>
       </div>
+      <input type="file" id="m-gpx-file" accept=".gpx,.kml,application/gpx+xml,application/vnd.google-earth.kml+xml,text/xml" hidden>
+      <ul class="m-list" id="m-traces"></ul>
+      <h2 class="cond">POINTS</h2>
+      <button class="btn-sm" id="m-add-point" type="button">+ Ajouter un point</button>
+      <ul class="m-list" id="m-points"></ul>
+      <h2 class="cond">REPÈRES DU GUIDAGE</h2>
+      <button class="btn-sm" id="m-add-repere" type="button">+ Ajouter un repère</button>
+      <ul class="m-list" id="m-reperes"></ul>
+      <h2 class="cond">LIVRE</h2>
+      <div class="card row-between"><span class="small" id="m-livre">—</span><button class="btn-sm" id="m-voir-livre" type="button">Voir le livre</button></div>
     </div>
   </div>
 
@@ -146,12 +190,18 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l7 19-7-4-7 4z"/></svg>GUIDAGE</button>
     <button class="tab" data-view="livre" type="button">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5c3-1 6-1 8 1 2-2 5-2 8-1v14c-3-1-6-1-8 1-2-2-5-2-8-1V5z"/><path d="M12 6v14"/></svg>LIVRE</button>
+    <button class="tab" data-view="master" id="tab-master" type="button" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>MASTER</button>
   </nav>
 </section>
 
 <div class="toast" id="toast" hidden></div>
+<div class="dialog-wrap" id="dialog" hidden><div class="dialog"><h2 class="cond" id="dialog-title"></h2><form id="dialog-form" onsubmit="return false"></form></div></div>
+<div class="photo-view" id="photo-view" hidden><img alt=""></div>
 
 <script src="vendor/maplibre-gl.js"></script>
+<script src="livre.js"></script>
+<script src="master.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

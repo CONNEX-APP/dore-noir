@@ -4,6 +4,11 @@ Carte hors ligne et livre du chalet du Lac Bouchard (web app installable sur iPh
 
 **Adresse :** https://connex-app.github.io/dore-noir/
 
+## Version 0.2 (livre + mode Master)
+- Livre : histoires et photos des invités, écrites hors ligne, envoyées au retour du réseau, visibles après approbation.
+- Mode Master (appui long sur le logo + NIP) : enregistrer un tracé au GPS, importer GPX/KML, ajouter/modifier/supprimer des points, supprimer une section de tracé, repères de guidage, approbation du livre.
+- Serveur : Google Sheet + Apps Script (voir `google-apps-script/Code.gs`).
+
 ## Version 0.1
 - Accueil : ajout à l'écran d'accueil, téléchargement de la carte, localisation.
 - Carte hors ligne : route Esso de Saint-Michel-des-Saints → fourche du KM 66 → chalet, territoire de chasse, lacs, sentiers, caches, saline.
