@@ -65,8 +65,15 @@ async function renderLivre() {
   items.forEach((h) => {
     const art = document.createElement('article'); art.className = 'story';
     if (h.photos.length) {
-      const ph = document.createElement('div'); ph.className = 'story-photos';
-      h.photos.forEach((src) => { const im = document.createElement('img'); im.loading = 'lazy'; im.alt = ''; im.src = src; im.onclick = () => openPhoto(src); ph.appendChild(im); });
+      const ph = document.createElement('div'); ph.className = 'story-photos ' + (h.photos.length === 1 ? 'une' : 'collage');
+      h.photos.forEach((src, i) => {
+        const pr = document.createElement('figure'); pr.className = 'print';
+        pr.style.setProperty('--r', angle(String(h.id || h.date) + i) + 'deg');
+        pr.style.zIndex = String(1 + ((i * 7) % 5));
+        pr.innerHTML = '<span class="tape t1"></span><span class="tape t2"></span>' + (h.photos.length === 1 ? '<span class="tape t3"></span><span class="tape t4"></span>' : '');
+        const im = document.createElement('img'); im.loading = 'lazy'; im.alt = ''; im.src = src;
+        pr.prepend(im); pr.onclick = () => openPhoto(h.photos, i); ph.appendChild(pr);
+      });
       art.appendChild(ph);
     }
     const body = document.createElement('div'); body.className = 'story-body';
@@ -89,9 +96,24 @@ async function renderLivre() {
   $('livre-pending').textContent = n + (n > 1 ? ' histoires attendent' : ' histoire attend') + ' le réseau pour être envoyée' + (n > 1 ? 's' : '') + '.';
 }
 
-function openPhoto(src) {
-  const v = $('photo-view'); v.querySelector('img').src = src; v.hidden = false;
+// Angle « photo papier » : différent pour chaque image, toujours le même pour la même image
+function angle(cle) {
+  let x = 0; for (const c of cle) x = (x * 31 + c.charCodeAt(0)) | 0;
+  const a = ((Math.abs(x) % 70) / 10) - 3.5; // -3,5° à +3,5°
+  return Math.abs(a) < 1 ? (a < 0 ? a - 1.2 : a + 1.2) : a;
 }
+let vue = { photos: [], i: 0 };
+function openPhoto(photos, i = 0) {
+  vue = { photos: Array.isArray(photos) ? photos : [photos], i };
+  const v = $('photo-view'); majVue(); v.hidden = false;
+}
+function majVue() {
+  const v = $('photo-view'), n = vue.photos.length;
+  v.querySelector('img').src = vue.photos[vue.i];
+  v.querySelector('.pv-prec').hidden = v.querySelector('.pv-suiv').hidden = n < 2;
+  v.querySelector('.pv-compte').textContent = n > 1 ? (vue.i + 1) + ' / ' + n : '';
+}
+function pasPhoto(d) { const n = vue.photos.length; vue.i = (vue.i + d + n) % n; majVue(); }
 
 async function ecrireHistoire() {
   const r = await dialog('Raconte ton séjour', [
@@ -143,7 +165,13 @@ function initLivre() {
     chips.appendChild(b);
   });
   $('livre-ecrire').onclick = ecrireHistoire;
-  $('photo-view').onclick = () => { $('photo-view').hidden = true; };
+  const pv = $('photo-view');
+  pv.onclick = () => { if (!pv.dataset.swipe) pv.hidden = true; };
+  pv.querySelector('.pv-prec').onclick = (e) => { e.stopPropagation(); pasPhoto(-1); };
+  pv.querySelector('.pv-suiv').onclick = (e) => { e.stopPropagation(); pasPhoto(1); };
+  let x0 = null;
+  pv.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; }, { passive: true });
+  pv.addEventListener('touchend', (e) => { if (x0 === null || vue.photos.length < 2) return; const dx = e.changedTouches[0].clientX - x0; x0 = null; if (Math.abs(dx) > 50) { pasPhoto(dx < 0 ? 1 : -1); pv.dataset.swipe = '1'; setTimeout(() => delete pv.dataset.swipe, 400); } });
   hooks.onData.push((why) => { renderLivre(); if (why === 'online') envoyerHistoires(); });
   renderLivre(); envoyerHistoires();
 }
