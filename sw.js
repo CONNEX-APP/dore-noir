@@ -1,9 +1,10 @@
 /* Service worker — Domaine du Doré Noir */
-const VERSION = '0.2.1';
+const VERSION = '0.3.0';
 const APP_CACHE = 'app-' + VERSION;
 const TILE_CACHE = 'tuiles-v1';
 const FONT_CACHE = 'polices-v1';
 const PHOTO_CACHE = 'photos-v1';
+const SAT_CACHE = 'satellite-v1';
 const SHELL = [
   './', 'index.html', 'style.css', 'app.js', 'livre.js', 'master.js', 'manifest.webmanifest',
   'vendor/maplibre-gl.js', 'vendor/maplibre-gl.css',
@@ -40,6 +41,10 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url);
   if (url.hostname === 'tiles.openfreemap.org' && url.pathname !== '/planet') {
     e.respondWith(cacheFirst(req, TILE_CACHE));
+    return;
+  }
+  if (url.hostname === 'servicesmatriciels.mern.gouv.qc.ca') {
+    e.respondWith(cacheFirst(req, SAT_CACHE));
     return;
   }
   if ((url.hostname === 'drive.google.com' && url.pathname === '/thumbnail') || url.hostname.endsWith('googleusercontent.com')) {

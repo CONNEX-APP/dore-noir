@@ -21,4 +21,4 @@ Carte hors ligne et livre du chalet du Lac Bouchard (web app installable sur iPh
 - `data/route.json` : route de guidage et repères.
 - `data/tiles.json` / `data/zone-hors-ligne.json` : zone téléchargée hors ligne.
 
-Fond de carte © OpenFreeMap, © OpenMapTiles, © contributeurs OpenStreetMap. Moteur de carte : MapLibre GL JS (licence BSD, voir `vendor/maplibre-LICENSE.txt`).
+Imagerie satellite (mode Master) © Gouvernement du Québec. Fond de carte © OpenFreeMap, © OpenMapTiles, © contributeurs OpenStreetMap. Moteur de carte : MapLibre GL JS (licence BSD, voir `vendor/maplibre-LICENSE.txt`).

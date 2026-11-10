@@ -32,6 +32,7 @@ async function demanderNip() {
 }
 function quitterMaster() {
   window.masterNip = null; document.body.classList.remove('master'); $('tab-master').hidden = true;
+  if (drawing) finDessin(); setSatellite(false); $('btn-sat-dl').hidden = true;
   hooks.onMapClick = null; setSelection([]); setView('carte'); renderLivre(); refreshRemote();
 }
 
@@ -179,6 +180,54 @@ function stopRec() {
   if (!guiding) keepAwake(false);
 }
 
+/* ---------- Dessiner un tracé point par point ---------- */
+let drawing = null;
+function majDessin() {
+  const c = drawing.coords;
+  $('draw-dist').textContent = fmtDist(lineLength(c));
+  $('draw-n').textContent = c.length;
+  const f = [];
+  if (c.length > 1) f.push({ type: 'Feature', properties: { color: '#FF7A2E' }, geometry: { type: 'LineString', coordinates: c } });
+  c.forEach((p) => f.push({ type: 'Feature', properties: { color: '#FFFFFF' }, geometry: { type: 'LineString', coordinates: [p, [p[0] + 0.00001, p[1]]] } }));
+  setSelection(f);
+}
+function commencerDessin() {
+  if (window.recording) { toast('Termine d\'abord l\'enregistrement en cours.'); return; }
+  drawing = { coords: [] };
+  setView('carte'); setSatellite(true);
+  $('panel-retour').hidden = true; $('sec-panel').hidden = true; $('draw-panel').hidden = false;
+  hooks.onMapClick = (e) => { drawing.coords.push([+e.lngLat.lng.toFixed(6), +e.lngLat.lat.toFixed(6)]); majDessin(); };
+  majDessin(); toast('Touche la carte pour placer chaque point du chemin.');
+}
+function finDessin() { drawing = null; hooks.onMapClick = null; $('draw-panel').hidden = true; $('panel-retour').hidden = false; setSelection([]); }
+async function terminerDessin() {
+  if (!drawing || drawing.coords.length < 2) { toast('Place au moins deux points.'); return; }
+  const res = await dialog('Enregistrer le tracé dessiné (' + fmtDist(lineLength(drawing.coords)) + ')', [
+    { name: 'nom', label: 'Nom du tracé', required: true, placeholder: 'Ex. : Chemin du KM 66 au chalet' },
+    { name: 'type', label: 'Type', type: 'select', options: { sentier: 'Sentier (VTT / marche)', pied: 'À pied seulement', acces: 'Chemin d\'accès' } },
+    { name: 'visibilite', label: 'Visible pour', type: 'select', options: { tous: 'Tous les invités', master: 'Moi seulement' } },
+  ]);
+  if (!res) return;
+  queue({ type: 'trace', id: uid('t'), data: { nom: res.nom, type: res.type, visibilite: res.visibilite, coords: drawing.coords } });
+  finDessin(); toast('Tracé enregistré.'); prefetchTraceTiles();
+}
+
+/* ---------- Satellite hors ligne (zone affichée) ---------- */
+async function garderSatellite() {
+  if (!navigator.onLine) { toast('Il faut du réseau pour télécharger le satellite.'); return; }
+  const b = map.getBounds(), z0 = Math.max(12, Math.floor(map.getZoom()) - 2), urls = [];
+  for (let z = z0; z <= 17; z++) {
+    for (let x = lon2x(b.getWest(), z); x <= lon2x(b.getEast(), z); x++) for (let y = lat2y(b.getNorth(), z); y <= lat2y(b.getSouth(), z); y++) urls.push(SAT_TILES.replace('{z}', z).replace('{x}', x).replace('{y}', y));
+  }
+  if (urls.length > 3000) { toast('Zone trop grande (' + urls.length + ' tuiles) : rapproche-toi avant de télécharger.'); return; }
+  if (!(await confirmer('Garder le satellite de cette zone hors ligne? (' + urls.length + ' tuiles, environ ' + Math.round(urls.length * 0.02) + ' Mo)'))) return;
+  toast('Téléchargement du satellite…');
+  const cache = await caches.open('satellite-v1'); let i = 0, done = 0;
+  const worker = async () => { while (i < urls.length) { const u = urls[i++]; try { if (!(await cache.match(u))) { const r = await fetch(u, { mode: 'cors' }); if (r.ok) await cache.put(u, r); } } catch (e) {} done++; } };
+  await Promise.all(Array.from({ length: 6 }, worker));
+  toast('Satellite gardé hors ligne pour cette zone.');
+}
+
 /* ---------- Import GPX / KML ---------- */
 async function importerFichier(file) {
   const txt = await file.text();
@@ -324,6 +373,12 @@ function initMaster() {
   $('m-sync-btn').onclick = syncMaster;
   $('m-rec').onclick = startRecording;
   $('m-gpx').onclick = () => $('m-gpx-file').click();
+  $('m-draw').onclick = commencerDessin;
+  $('draw-undo').onclick = () => { if (drawing) { drawing.coords.pop(); majDessin(); } };
+  $('draw-cancel').onclick = async () => { if (!drawing.coords.length || await confirmer('Abandonner ce dessin?')) finDessin(); };
+  $('draw-done').onclick = terminerDessin;
+  $('btn-sat').onclick = () => { setSatellite(!satOn); $('btn-sat-dl').hidden = !satOn; };
+  $('btn-sat-dl').onclick = garderSatellite;
   $('m-gpx-file').onchange = (e) => { const f = e.target.files[0]; if (f) importerFichier(f); e.target.value = ''; };
   $('m-section').onclick = choisirTrace;
   $('m-add-point').onclick = ajouterPoint;

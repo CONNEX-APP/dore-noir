@@ -1,6 +1,6 @@
 /* Domaine du Doré Noir — carte hors ligne, guidage, livre, mode Master */
 'use strict';
-const APP_VERSION = '0.2.1';
+const APP_VERSION = '0.3.0';
 const API = 'https://script.google.com/macros/s/AKfycbzps51_8A3kFMwmofGVydBUbukRxK7kiQ9IEzzbV3s0TijmRa27ITe81BEbBBuK4HTaDQ/exec';
 const CHALET = [-73.942520, 47.096700];
 const TILEJSON = 'https://tiles.openfreemap.org/planet';
@@ -8,6 +8,8 @@ const GLYPHS = 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf';
 const FONT = 'Noto Sans Regular';
 const TILE_CACHE = 'tuiles-v1';
 const OFF_ROUTE_M = 150;
+const SAT_TILES = 'https://servicesmatriciels.mern.gouv.qc.ca/erdas-iws/ogc/wmts/Imagerie_Continue/Imagerie_GQ/default/GoogleMapsCompatibleExt2:epsg:3857/{z}/{y}/{x}.jpg';
+let satOn = false;
 
 const $ = (id) => document.getElementById(id);
 const store = {
@@ -143,10 +145,12 @@ function buildStyle() {
         paint: { 'line-color': '#8A8F7A', 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.8, 15, 3] } },
     );
   }
+  sources.sat = { type: 'raster', tiles: [SAT_TILES], tileSize: 256, maxzoom: 19, attribution: 'Imagerie © Gouvernement du Québec' };
+  layers.push({ id: 'satellite', type: 'raster', source: 'sat', layout: { visibility: satOn ? 'visible' : 'none' }, paint: { 'raster-opacity': 0.95 } });
   const isK = (k) => ['==', ['get', 'kind'], k];
   layers.push(
-    { id: 'lacs', type: 'fill', source: 'domaine', filter: isK('lac'), paint: { 'fill-color': '#1E3640' } },
-    { id: 'zone-fill', type: 'fill', source: 'domaine', filter: isK('zone'), paint: { 'fill-color': '#9BC26B', 'fill-opacity': 0.08 } },
+    { id: 'lacs', type: 'fill', source: 'domaine', filter: isK('lac'), layout: { visibility: satOn ? 'none' : 'visible' }, paint: { 'fill-color': '#1E3640' } },
+    { id: 'zone-fill', type: 'fill', source: 'domaine', filter: isK('zone'), layout: { visibility: satOn ? 'none' : 'visible' }, paint: { 'fill-color': '#9BC26B', 'fill-opacity': 0.08 } },
     { id: 'zone-ligne', type: 'line', source: 'domaine', filter: isK('zone'), paint: { 'line-color': '#9BC26B', 'line-width': 2, 'line-dasharray': [3, 2] } },
     { id: 'sentiers', type: 'line', source: 'domaine', filter: isK('sentier'), layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: { 'line-color': ['case', ['==', ['get', 'vis'], 'master'], '#B86AE8', '#FF7A2E'], 'line-width': ['interpolate', ['linear'], ['zoom'], 11, 1.5, 16, 4] } },
@@ -166,6 +170,14 @@ function buildStyle() {
     );
   }
   return { version: 8, glyphs: GLYPHS, sources, layers };
+}
+function setSatellite(on) {
+  satOn = on;
+  if (map && map.getLayer('satellite')) {
+    map.setLayoutProperty('satellite', 'visibility', on ? 'visible' : 'none');
+    ['lacs', 'zone-fill'].forEach((l) => map.setLayoutProperty(l, 'visibility', on ? 'none' : 'visible'));
+  }
+  const b = $('btn-sat'); if (b) b.classList.toggle('on', on);
 }
 function setSelection(features) { if (map && map.getSource('selection')) map.getSource('selection').setData({ type: 'FeatureCollection', features }); }
 
@@ -205,7 +217,7 @@ function renderMarkers() {
 function initMap() {
   map = new maplibregl.Map({
     container: 'map', style: buildStyle(), center: CHALET, zoom: 13.2,
-    attributionControl: false, pitchWithRotate: false, dragRotate: false, maxZoom: 17,
+    attributionControl: false, pitchWithRotate: false, dragRotate: false, maxZoom: 18,
   });
   map.touchZoomRotate.disableRotation();
   map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: 'Données du domaine : Famille Richard-Benny' }), 'bottom-left');

@@ -79,6 +79,12 @@
       <button class="ctrl" id="btn-locate" type="button" aria-label="Centrer sur ma position">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.5" class="fill"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
       </button>
+      <button class="ctrl master-only" id="btn-sat" type="button" aria-label="Satellite">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14l6-6 4 4-6 6z"/><path d="M14 4l6 6M12 16l3 3M8 12l-3-3"/><path d="M17 17a4 4 0 004-4"/></svg>
+      </button>
+      <button class="ctrl master-only" id="btn-sat-dl" type="button" aria-label="Garder le satellite de cette zone hors ligne" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+      </button>
       <button class="ctrl" id="btn-chalet" type="button" aria-label="Voir le chalet">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7M6 10v10h12V10"/><path d="M10 20v-5h4v5"/></svg>
       </button>
@@ -95,6 +101,13 @@
       <div class="rec-grid"><div><span class="mono muted xsmall">DISTANCE</span><span class="mono big2" id="rec-dist">0 m</span></div><div><span class="mono muted xsmall">DURÉE</span><span class="mono big2" id="rec-time">00:00:00</span></div></div>
       <div class="rec-btns"><button class="btn-sm" id="rec-point" type="button">+ Point</button><button class="btn-sm" id="rec-pause" type="button">Pause</button><button class="btn-primary" id="rec-stop" type="button">TERMINER</button></div>
       <p class="xsmall muted">Garde l'écran allumé : iPhone coupe le GPS des web apps quand l'écran se verrouille.</p>
+    </div>
+
+    <!-- Dessiner un tracé (Master) -->
+    <div class="panel" id="draw-panel" hidden>
+      <div class="row-between"><span class="mono accent xsmall">DESSINER UN TRACÉ · TOUCHE LA CARTE POINT PAR POINT</span></div>
+      <div class="rec-grid"><div><span class="mono muted xsmall">DISTANCE</span><span class="mono big2" id="draw-dist">0 m</span></div><div><span class="mono muted xsmall">POINTS</span><span class="mono big2" id="draw-n">0</span></div></div>
+      <div class="rec-btns"><button class="btn-sm" id="draw-undo" type="button">↶ Retirer</button><button class="btn-sm" id="draw-cancel" type="button">Annuler</button><button class="btn-primary" id="draw-done" type="button">TERMINER</button></div>
     </div>
 
     <!-- Modifier une section (Master) -->
@@ -167,6 +180,7 @@
       <h2 class="cond">TRACÉS</h2>
       <div class="m-grid">
         <button class="m-act" id="m-rec" type="button"><b>Enregistrer</b><span>au GPS</span></button>
+        <button class="m-act" id="m-draw" type="button"><b>Dessiner</b><span>sur le satellite</span></button>
         <button class="m-act" id="m-gpx" type="button"><b>Importer</b><span>GPX ou KML</span></button>
         <button class="m-act" id="m-section" type="button"><b>Modifier</b><span>supprimer une section</span></button>
       </div>
