@@ -203,8 +203,8 @@ function finDessin() { drawing = null; hooks.onMapClick = null; $('draw-panel').
 async function terminerDessin() {
   if (!drawing || drawing.coords.length < 2) { toast('Place au moins deux points.'); return; }
   const res = await dialog('Enregistrer le tracé dessiné (' + fmtDist(lineLength(drawing.coords)) + ')', [
-    { name: 'nom', label: 'Nom du tracé', required: true, placeholder: 'Ex. : Chemin du KM 66 au chalet' },
-    { name: 'type', label: 'Type', type: 'select', options: { sentier: 'Sentier (VTT / marche)', pied: 'À pied seulement', acces: 'Chemin d\'accès' } },
+    { name: 'nom', label: 'Nom', required: true, placeholder: 'Ex. : Chemin du KM 66 au chalet' },
+    { name: 'type', label: 'Type', type: 'select', options: { sentier: 'Sentier (VTT / marche)', pied: 'À pied seulement', acces: 'Chemin d\'accès', zone: 'Zone / territoire (contour fermé)' } },
     { name: 'visibilite', label: 'Visible pour', type: 'select', options: { tous: 'Tous les invités', master: 'Moi seulement' } },
   ]);
   if (!res) return;
@@ -265,26 +265,33 @@ async function importerFichier(file) {
 let secTrace = null;
 const traceSous = (e) => {
   const b = 14;
-  const f = map.queryRenderedFeatures([[e.point.x - b, e.point.y - b], [e.point.x + b, e.point.y + b]], { layers: ['sentiers', 'pied', 'acces'] }).find((x) => x.properties.id);
-  return f ? dyn.traces.find((t) => t.id === f.properties.id) : null;
+  const fs = map.queryRenderedFeatures([[e.point.x - b, e.point.y - b], [e.point.x + b, e.point.y + b]], { layers: ['sentiers', 'pied', 'acces', 'zone-ligne'] });
+  const f = fs.find((x) => x.properties.id);
+  if (f) return dyn.traces.find((t) => t.id === f.properties.id);
+  if (fs.some((x) => x.properties.kind === 'zone')) {
+    const z = base.features.find((x) => x.properties.kind === 'zone');
+    if (z) { const c = z.geometry.coordinates[0].map((p) => [+p[0].toFixed(6), +p[1].toFixed(6)]); return { id: null, nom: 'Territoire de chasse', type: 'zone', visibilite: 'tous', coords: c }; }
+  }
+  return null;
 };
 // Toucher un tracé en mode Master : renommer, changer le type, modifier les points, supprimer
 async function actionsTrace(t) {
-  setSelection([{ type: 'Feature', properties: { color: '#FF4D3D' }, geometry: { type: 'LineString', coordinates: t.coords } }]);
-  const r = await dialog('Tracé : ' + t.nom + ' (' + fmtDist(lineLength(t.coords)) + ')', [
+  setSelection([{ type: 'Feature', properties: { color: '#FF4D3D' }, geometry: { type: 'LineString', coordinates: t.type === 'zone' ? ferme(t.coords) : t.coords } }]);
+  const r = await dialog((t.type === 'zone' ? 'Zone : ' : 'Tracé : ') + t.nom + ' (' + fmtDist(lineLength(t.coords)) + ')', [
     { name: 'nom', label: 'Nom', required: true, value: t.nom },
-    { name: 'type', label: 'Type', type: 'select', options: { sentier: 'Sentier (VTT / marche)', pied: 'À pied seulement', acces: 'Chemin d\'accès' }, value: t.type },
+    { name: 'type', label: 'Type', type: 'select', options: { sentier: 'Sentier (VTT / marche)', pied: 'À pied seulement', acces: 'Chemin d\'accès', zone: 'Zone / territoire (contour fermé)' }, value: t.type },
     { name: 'visibilite', label: 'Visible pour', type: 'select', options: { tous: 'Tous les invités', master: 'Moi seulement' }, value: t.visibilite || 'tous' },
   ], [
     { label: 'Supprimer', value: 'suppr', danger: true },
     { label: 'Modifier les points', value: 'points' },
-    { label: 'Une section…', value: 'section' },
+  ].concat(t.type === 'zone' ? [] : [{ label: 'Une section…', value: 'section' }]).concat([
     { label: 'Annuler', value: null },
     { label: 'Enregistrer', value: 'ok', primary: true },
-  ]);
+  ]));
   setSelection([]);
   if (!r) return;
-  if (r._btn === 'suppr') { if (await confirmer('Supprimer tout le tracé « ' + t.nom + ' » ?')) { queue({ type: 'trace', id: t.id, supprimer: true }); toast('Tracé supprimé.'); } return; }
+  if (!t.id) { t = Object.assign({}, t, { id: uid('t') }); queue({ type: 'trace', id: t.id, data: { nom: t.nom, type: 'zone', visibilite: 'tous', coords: t.coords } }); }
+  if (r._btn === 'suppr') { if (await confirmer('Supprimer « ' + t.nom + ' » ?')) { queue({ type: 'trace', id: t.id, supprimer: true }); toast('Supprimé.'); } return; }
   const maj = { nom: r.nom, type: r.type, visibilite: r.visibilite };
   const change = maj.nom !== t.nom || maj.type !== t.type || maj.visibilite !== (t.visibilite || 'tous');
   if (change) queue({ type: 'trace', id: t.id, data: Object.assign({}, maj, { coords: t.coords }) });
@@ -300,7 +307,9 @@ function editerPoints(t) {
   let coords = t.coords;
   if (coords.length > 200) coords = simplify(coords, 4);
   if (coords.length > 200) coords = simplify(coords, 10);
-  edit = { trace: t, coords: coords.map((c) => c.slice()), markers: [], sel: -1 };
+  const zone = t.type === 'zone';
+  if (zone && coords.length > 2 && coords[0][0] === coords[coords.length - 1][0] && coords[0][1] === coords[coords.length - 1][1]) coords = coords.slice(0, -1);
+  edit = { trace: t, coords: coords.map((c) => c.slice()), markers: [], sel: -1, zone };
   setView('carte'); fitTrace(t); setSatellite(true);
   $('panel-retour').hidden = true; $('sec-panel').hidden = true; $('edit-panel').hidden = false;
   hooks.onMapClick = (e) => ajouterSommet([+e.lngLat.lng.toFixed(6), +e.lngLat.lat.toFixed(6)]);
@@ -319,28 +328,31 @@ function dessinerSommets() {
   majEdit();
 }
 function majEdit() {
-  setSelection([{ type: 'Feature', properties: { color: '#FF7A2E' }, geometry: { type: 'LineString', coordinates: edit.coords } }]);
+  setSelection([{ type: 'Feature', properties: { color: '#FF7A2E' }, geometry: { type: 'LineString', coordinates: edit.zone ? ferme(edit.coords) : edit.coords } }]);
   $('edit-info').textContent = edit.coords.length + ' points · ' + fmtDist(lineLength(edit.coords)) + (edit.sel >= 0 ? ' · point ' + (edit.sel + 1) + ' sélectionné' : '');
   $('edit-del').disabled = edit.sel < 0;
 }
 function ajouterSommet(p) {
   const c = edit.coords, k = Math.cos(rad(p[1])) * 111320, M = 111320;
   let best = { d: Infinity, i: c.length, t: 1 };
-  for (let i = 0; i < c.length - 1; i++) {
-    const ax = c[i][0] * k, ay = c[i][1] * M, bx = c[i + 1][0] * k, by = c[i + 1][1] * M, px = p[0] * k, py = p[1] * M;
+  const nseg = edit.zone ? c.length : c.length - 1;
+  for (let i = 0; i < nseg; i++) {
+    const j = (i + 1) % c.length;
+    const ax = c[i][0] * k, ay = c[i][1] * M, bx = c[j][0] * k, by = c[j][1] * M, px = p[0] * k, py = p[1] * M;
     const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy || 1;
     let t = ((px - ax) * dx + (py - ay) * dy) / L2; const tc = Math.max(0, Math.min(1, t));
     const d = Math.hypot(px - (ax + tc * dx), py - (ay + tc * dy));
     if (d < best.d) best = { d, i, t };
   }
-  if (best.i === 0 && best.t < 0) { c.unshift(p); edit.sel = 0; }
+  if (edit.zone) { c.splice(best.i + 1, 0, p); edit.sel = best.i + 1; }
+  else if (best.i === 0 && best.t < 0) { c.unshift(p); edit.sel = 0; }
   else if (best.i === c.length - 2 && best.t > 1) { c.push(p); edit.sel = c.length - 1; }
   else { c.splice(best.i + 1, 0, p); edit.sel = best.i + 1; }
   dessinerSommets();
 }
 function retirerSommet() {
   if (!edit || edit.sel < 0) return;
-  if (edit.coords.length <= 2) { toast('Un tracé doit garder au moins 2 points.'); return; }
+  if (edit.coords.length <= (edit.zone ? 3 : 2)) { toast(edit.zone ? 'Une zone doit garder au moins 3 points.' : 'Un tracé doit garder au moins 2 points.'); return; }
   edit.coords.splice(edit.sel, 1); edit.sel = -1; dessinerSommets();
 }
 function finEdit() {

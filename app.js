@@ -1,6 +1,6 @@
 /* Domaine du Doré Noir — carte hors ligne, guidage, livre, mode Master */
 'use strict';
-const APP_VERSION = '0.3.1';
+const APP_VERSION = '0.3.2';
 const API = 'https://script.google.com/macros/s/AKfycbzps51_8A3kFMwmofGVydBUbukRxK7kiQ9IEzzbV3s0TijmRa27ITe81BEbBBuK4HTaDQ/exec';
 const CHALET = [-73.942520, 47.096700];
 const TILEJSON = 'https://tiles.openfreemap.org/planet';
@@ -92,9 +92,13 @@ function reperesTries() {
   return (dyn.reperes || []).map((r) => Object.assign({}, r, { km: Math.round(snapToRoute([r.lon, r.lat]).along / 10) / 100 }))
     .sort((a, b) => a.km - b.km);
 }
+const ferme = (c) => (c.length && (c[0][0] !== c[c.length - 1][0] || c[0][1] !== c[c.length - 1][1]) ? c.concat([c[0]]) : c);
 function featureCollection() {
-  const f = base.features.slice();
-  dyn.traces.forEach((t) => f.push({ type: 'Feature', properties: { id: t.id, name: t.nom, kind: t.type, vis: t.visibilite }, geometry: { type: 'LineString', coordinates: t.coords } }));
+  const zoneDyn = dyn.traces.some((t) => t.type === 'zone');
+  const f = base.features.filter((x) => !(zoneDyn && x.properties.kind === 'zone'));
+  dyn.traces.forEach((t) => f.push(t.type === 'zone'
+    ? { type: 'Feature', properties: { id: t.id, name: t.nom, kind: 'zone', vis: t.visibilite }, geometry: { type: 'Polygon', coordinates: [ferme(t.coords)] } }
+    : { type: 'Feature', properties: { id: t.id, name: t.nom, kind: t.type, vis: t.visibilite }, geometry: { type: 'LineString', coordinates: t.coords } }));
   return { type: 'FeatureCollection', features: f };
 }
 function setDyn(d, save = true) {
