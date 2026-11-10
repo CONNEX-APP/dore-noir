@@ -1,6 +1,6 @@
 /* Domaine du Doré Noir — carte hors ligne v0.1 */
 'use strict';
-const APP_VERSION = '0.1.2';
+const APP_VERSION = '0.1.3';
 const CHALET = [-73.942520, 47.096700];
 const TILEJSON = 'https://tiles.openfreemap.org/planet';
 const GLYPHS = 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf';
@@ -117,7 +117,7 @@ function addMarkers() {
     const k = f.properties.kind in ICONS ? f.properties.kind : 'lieu';
     const el = document.createElement('div');
     el.className = 'mk ' + k;
-    let label = f.properties.name.replace('Esso Saint-Michel-des-Saints', 'Esso St-Michel').replace('Départ — 500, rue des Aulnaies', 'Départ');
+    let label = f.properties.name.replace('Esso Saint-Michel-des-Saints', 'Esso St-Michel').replace('Départ — 500, rue des Aulnaies', 'Départ').replace('Accueil Pins-rouges — Zec Gros Brochet', 'Accueil Zec');
     el.innerHTML = '<div class="mk-ico"><svg viewBox="0 0 24 24" aria-hidden="true">' + ICONS[k] + '</svg></div><span class="mk-lbl"></span>';
     el.querySelector('.mk-lbl').textContent = label;
     el.title = f.properties.name;
