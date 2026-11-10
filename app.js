@@ -1,6 +1,6 @@
 /* Domaine du Doré Noir — carte hors ligne, guidage, livre, mode Master */
 'use strict';
-const APP_VERSION = '0.3.6';
+const APP_VERSION = '0.3.7';
 const API = 'https://script.google.com/macros/s/AKfycbzps51_8A3kFMwmofGVydBUbukRxK7kiQ9IEzzbV3s0TijmRa27ITe81BEbBBuK4HTaDQ/exec';
 const CHALET = [-73.942520, 47.096700];
 const TILEJSON = 'https://tiles.openfreemap.org/planet';
@@ -201,9 +201,10 @@ const ICONS = {
   peche: '<path d="M3 12c4-6 10-6 14 0-4 6-10 6-14 0z"/><path d="M17 12l4-3v6z"/>',
   stationnement: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M10 16V8h3a2.5 2.5 0 010 5h-3"/>',
   camera: '<rect x="3" y="7" width="14" height="11" rx="2"/><path d="M17 11l4-2v8l-4-2"/><circle cx="10" cy="12.5" r="2.5"/>',
+  bateau: '<path d="M3 15h18l-3 5H6z"/><path d="M12 15V4l6 9h-6"/><path d="M2 21c2 0 2-1 4-1s2 1 4 1 2-1 4-1 2 1 4 1 2-1 4-1"/>',
   lieu: '<path d="M12 21s-7-6.5-7-12a7 7 0 0114 0c0 5.5-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/>',
 };
-const TYPES_POINT = { nom_lac: 'Nom de lac (texte sur la carte)', cache: 'Cache', saline: 'Saline', peche: 'Spot de pêche', camera: 'Caméra', danger: 'Danger', stationnement: 'Stationnement', fourche: 'Embranchement', chalet: 'Chalet', depart: 'Départ', lieu: 'Autre' };
+const TYPES_POINT = { nom_lac: 'Nom de lac (texte sur la carte)', cache: 'Cache', saline: 'Saline', peche: 'Spot de pêche', bateau: 'Descente de bateau', camera: 'Caméra', danger: 'Danger', stationnement: 'Stationnement', fourche: 'Embranchement', chalet: 'Chalet', depart: 'Départ', lieu: 'Autre' };
 const shortName = (n) => n.replace('Esso Saint-Michel-des-Saints', 'Esso St-Michel').replace('Départ — 500, rue des Aulnaies', 'Départ').replace('Accueil Pins-rouges — Zec Gros Brochet', 'Accueil Zec');
 // Noms de lacs ajoutés à la main : même écriture que les noms de la carte de fond
 function nomsLacs() {

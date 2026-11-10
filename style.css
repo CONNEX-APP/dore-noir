@@ -146,7 +146,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .btn-sm.danger,.btn-danger{border:1px solid var(--warn);color:#FF9A8F;background:transparent;border-radius:6px;min-height:44px;padding:0 14px;font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:15px;letter-spacing:1px;text-transform:uppercase}
 .mk.prive .mk-ico{border-style:dashed}.mk.prive{opacity:.8}
 .mk.danger{color:#FF9A8F}.mk.danger .mk-ico{border-color:var(--warn)}
-.mk.peche{color:#A9CBD8}.mk.peche .mk-ico{border-color:#7FA6B5}
+.mk.peche,.mk.bateau{color:#A9CBD8}.mk.peche .mk-ico,.mk.bateau .mk-ico{border-color:#7FA6B5}
 .mk.camera,.mk.stationnement{color:var(--txt2)}
 
 .crosshair{position:absolute;left:50%;top:50%;width:48px;height:48px;margin:-24px 0 0 -24px;z-index:4;pointer-events:none}
