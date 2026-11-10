@@ -110,6 +110,13 @@
       <div class="rec-btns"><button class="btn-sm" id="draw-undo" type="button">↶ Retirer</button><button class="btn-sm" id="draw-cancel" type="button">Annuler</button><button class="btn-primary" id="draw-done" type="button">TERMINER</button></div>
     </div>
 
+    <!-- Modifier les points d'un tracé (Master) -->
+    <div class="panel" id="edit-panel" hidden>
+      <span class="mono accent xsmall">MODIFIER LES POINTS · GLISSE POUR DÉPLACER · TOUCHE LA CARTE POUR AJOUTER</span>
+      <span class="mono small" id="edit-info"></span>
+      <div class="rec-btns"><button class="btn-sm danger" id="edit-del" type="button">Retirer le point</button><button class="btn-sm" id="edit-cancel" type="button">Annuler</button><button class="btn-primary" id="edit-save" type="button">ENREGISTRER</button></div>
+    </div>
+
     <!-- Modifier une section (Master) -->
     <div class="panel" id="sec-panel" hidden>
       <div class="row-between"><span class="mono accent xsmall">MODIFIER UN TRACÉ</span><button class="btn-sm" id="sec-fermer" type="button">Fermer</button></div>
@@ -182,7 +189,7 @@
         <button class="m-act" id="m-rec" type="button"><b>Enregistrer</b><span>au GPS</span></button>
         <button class="m-act" id="m-draw" type="button"><b>Dessiner</b><span>sur le satellite</span></button>
         <button class="m-act" id="m-gpx" type="button"><b>Importer</b><span>GPX ou KML</span></button>
-        <button class="m-act" id="m-section" type="button"><b>Modifier</b><span>supprimer une section</span></button>
+        <button class="m-act" id="m-section" type="button"><b>Modifier</b><span>ou touche un tracé sur la carte</span></button>
       </div>
       <input type="file" id="m-gpx-file" accept=".gpx,.kml,application/gpx+xml,application/vnd.google-earth.kml+xml,text/xml" hidden>
       <ul class="m-list" id="m-traces"></ul>

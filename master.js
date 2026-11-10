@@ -32,7 +32,7 @@ async function demanderNip() {
 }
 function quitterMaster() {
   window.masterNip = null; document.body.classList.remove('master'); $('tab-master').hidden = true;
-  if (drawing) finDessin(); setSatellite(false); $('btn-sat-dl').hidden = true;
+  if (drawing) finDessin(); if (edit) finEdit(); setSatellite(false); $('btn-sat-dl').hidden = true;
   hooks.onMapClick = null; setSelection([]); setView('carte'); renderLivre(); refreshRemote();
 }
 
@@ -263,6 +263,97 @@ async function importerFichier(file) {
 
 /* ---------- Modifier / supprimer une section de tracé ---------- */
 let secTrace = null;
+const traceSous = (e) => {
+  const b = 14;
+  const f = map.queryRenderedFeatures([[e.point.x - b, e.point.y - b], [e.point.x + b, e.point.y + b]], { layers: ['sentiers', 'pied', 'acces'] }).find((x) => x.properties.id);
+  return f ? dyn.traces.find((t) => t.id === f.properties.id) : null;
+};
+// Toucher un tracé en mode Master : renommer, changer le type, modifier les points, supprimer
+async function actionsTrace(t) {
+  setSelection([{ type: 'Feature', properties: { color: '#FF4D3D' }, geometry: { type: 'LineString', coordinates: t.coords } }]);
+  const r = await dialog('Tracé : ' + t.nom + ' (' + fmtDist(lineLength(t.coords)) + ')', [
+    { name: 'nom', label: 'Nom', required: true, value: t.nom },
+    { name: 'type', label: 'Type', type: 'select', options: { sentier: 'Sentier (VTT / marche)', pied: 'À pied seulement', acces: 'Chemin d\'accès' }, value: t.type },
+    { name: 'visibilite', label: 'Visible pour', type: 'select', options: { tous: 'Tous les invités', master: 'Moi seulement' }, value: t.visibilite || 'tous' },
+  ], [
+    { label: 'Supprimer', value: 'suppr', danger: true },
+    { label: 'Modifier les points', value: 'points' },
+    { label: 'Une section…', value: 'section' },
+    { label: 'Annuler', value: null },
+    { label: 'Enregistrer', value: 'ok', primary: true },
+  ]);
+  setSelection([]);
+  if (!r) return;
+  if (r._btn === 'suppr') { if (await confirmer('Supprimer tout le tracé « ' + t.nom + ' » ?')) { queue({ type: 'trace', id: t.id, supprimer: true }); toast('Tracé supprimé.'); } return; }
+  const maj = { nom: r.nom, type: r.type, visibilite: r.visibilite };
+  const change = maj.nom !== t.nom || maj.type !== t.type || maj.visibilite !== (t.visibilite || 'tous');
+  if (change) queue({ type: 'trace', id: t.id, data: Object.assign({}, maj, { coords: t.coords }) });
+  const t2 = Object.assign({}, t, maj);
+  if (r._btn === 'points') editerPoints(t2);
+  else if (r._btn === 'section') ouvrirSection(t2);
+  else if (change) toast('Tracé modifié.');
+}
+
+/* ---------- Modifier les points d'un tracé ---------- */
+let edit = null;
+function editerPoints(t) {
+  let coords = t.coords;
+  if (coords.length > 200) coords = simplify(coords, 4);
+  if (coords.length > 200) coords = simplify(coords, 10);
+  edit = { trace: t, coords: coords.map((c) => c.slice()), markers: [], sel: -1 };
+  setView('carte'); fitTrace(t); setSatellite(true);
+  $('panel-retour').hidden = true; $('sec-panel').hidden = true; $('edit-panel').hidden = false;
+  hooks.onMapClick = (e) => ajouterSommet([+e.lngLat.lng.toFixed(6), +e.lngLat.lat.toFixed(6)]);
+  dessinerSommets();
+  toast('Glisse un point pour le déplacer, touche la carte pour en ajouter.');
+}
+function dessinerSommets() {
+  edit.markers.forEach((m) => m.remove()); edit.markers = [];
+  edit.coords.forEach((c, i) => {
+    const el = document.createElement('div'); el.className = 'vx' + (i === edit.sel ? ' sel' : '');
+    const m = new maplibregl.Marker({ element: el, draggable: true }).setLngLat(c).addTo(map);
+    m.on('drag', () => { const p = m.getLngLat(); edit.coords[i] = [+p.lng.toFixed(6), +p.lat.toFixed(6)]; majEdit(); });
+    el.addEventListener('click', (ev) => { ev.stopPropagation(); edit.sel = i; dessinerSommets(); });
+    edit.markers.push(m);
+  });
+  majEdit();
+}
+function majEdit() {
+  setSelection([{ type: 'Feature', properties: { color: '#FF7A2E' }, geometry: { type: 'LineString', coordinates: edit.coords } }]);
+  $('edit-info').textContent = edit.coords.length + ' points · ' + fmtDist(lineLength(edit.coords)) + (edit.sel >= 0 ? ' · point ' + (edit.sel + 1) + ' sélectionné' : '');
+  $('edit-del').disabled = edit.sel < 0;
+}
+function ajouterSommet(p) {
+  const c = edit.coords, k = Math.cos(rad(p[1])) * 111320, M = 111320;
+  let best = { d: Infinity, i: c.length, t: 1 };
+  for (let i = 0; i < c.length - 1; i++) {
+    const ax = c[i][0] * k, ay = c[i][1] * M, bx = c[i + 1][0] * k, by = c[i + 1][1] * M, px = p[0] * k, py = p[1] * M;
+    const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy || 1;
+    let t = ((px - ax) * dx + (py - ay) * dy) / L2; const tc = Math.max(0, Math.min(1, t));
+    const d = Math.hypot(px - (ax + tc * dx), py - (ay + tc * dy));
+    if (d < best.d) best = { d, i, t };
+  }
+  if (best.i === 0 && best.t < 0) { c.unshift(p); edit.sel = 0; }
+  else if (best.i === c.length - 2 && best.t > 1) { c.push(p); edit.sel = c.length - 1; }
+  else { c.splice(best.i + 1, 0, p); edit.sel = best.i + 1; }
+  dessinerSommets();
+}
+function retirerSommet() {
+  if (!edit || edit.sel < 0) return;
+  if (edit.coords.length <= 2) { toast('Un tracé doit garder au moins 2 points.'); return; }
+  edit.coords.splice(edit.sel, 1); edit.sel = -1; dessinerSommets();
+}
+function finEdit() {
+  if (!edit) return;
+  edit.markers.forEach((m) => m.remove()); edit = null;
+  hooks.onMapClick = null; $('edit-panel').hidden = true; $('panel-retour').hidden = false; setSelection([]);
+}
+function sauverEdit() {
+  const t = edit.trace;
+  queue({ type: 'trace', id: t.id, data: { nom: t.nom, type: t.type, visibilite: t.visibilite || 'tous', coords: edit.coords } });
+  finEdit(); toast('Tracé modifié.'); prefetchTraceTiles();
+}
+
 function choisirTrace() {
   setView('carte'); toast('Touche le tracé à modifier sur la carte.');
   hooks.onMapClick = (e) => {
@@ -374,6 +465,13 @@ function initMaster() {
   $('m-rec').onclick = startRecording;
   $('m-gpx').onclick = () => $('m-gpx-file').click();
   $('m-draw').onclick = commencerDessin;
+  $('edit-del').onclick = retirerSommet;
+  $('edit-cancel').onclick = finEdit;
+  $('edit-save').onclick = sauverEdit;
+  hooks.onMapClickDefault = (e) => {
+    if (!window.masterNip || drawing || edit || window.recording || secTrace) return;
+    const t = traceSous(e); if (t) actionsTrace(t);
+  };
   $('draw-undo').onclick = () => { if (drawing) { drawing.coords.pop(); majDessin(); } };
   $('draw-cancel').onclick = async () => { if (!drawing.coords.length || await confirmer('Abandonner ce dessin?')) finDessin(); };
   $('draw-done').onclick = terminerDessin;

@@ -1,6 +1,6 @@
 /* Domaine du Doré Noir — carte hors ligne, guidage, livre, mode Master */
 'use strict';
-const APP_VERSION = '0.3.0';
+const APP_VERSION = '0.3.1';
 const API = 'https://script.google.com/macros/s/AKfycbzps51_8A3kFMwmofGVydBUbukRxK7kiQ9IEzzbV3s0TijmRa27ITe81BEbBBuK4HTaDQ/exec';
 const CHALET = [-73.942520, 47.096700];
 const TILEJSON = 'https://tiles.openfreemap.org/planet';
@@ -223,7 +223,7 @@ function initMap() {
   map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: 'Données du domaine : Famille Richard-Benny' }), 'bottom-left');
   map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
   map.on('load', renderMarkers);
-  map.on('click', (e) => { if (hooks.onMapClick) hooks.onMapClick(e); });
+  map.on('click', (e) => { if (hooks.onMapClick) hooks.onMapClick(e); else if (hooks.onMapClickDefault) hooks.onMapClickDefault(e); });
   map.on('error', (e) => { if (navigator.onLine) console.warn('[DN] carte', e && e.error && e.error.message); });
 }
 function reloadStyle() { if (map) map.setStyle(buildStyle()); }
