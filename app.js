@@ -1,6 +1,6 @@
 /* Domaine du Doré Noir — carte hors ligne, guidage, livre, mode Master */
 'use strict';
-const APP_VERSION = '0.3.2';
+const APP_VERSION = '0.3.3';
 const API = 'https://script.google.com/macros/s/AKfycbzps51_8A3kFMwmofGVydBUbukRxK7kiQ9IEzzbV3s0TijmRa27ITe81BEbBBuK4HTaDQ/exec';
 const CHALET = [-73.942520, 47.096700];
 const TILEJSON = 'https://tiles.openfreemap.org/planet';
@@ -151,6 +151,8 @@ function buildStyle() {
   }
   sources.sat = { type: 'raster', tiles: [SAT_TILES], tileSize: 256, maxzoom: 19, attribution: 'Imagerie © Gouvernement du Québec' };
   layers.push({ id: 'satellite', type: 'raster', source: 'sat', layout: { visibility: satOn ? 'visible' : 'none' }, paint: { 'raster-opacity': 0.95 } });
+  if (tpl) layers.push({ id: 'chemins-ref', type: 'line', source: 'omt', 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['track', 'path', 'service', 'minor', 'tertiary', 'secondary', 'primary', 'trunk']]],
+    layout: { visibility: satOn ? 'visible' : 'none' }, paint: { 'line-color': '#FFFFFF', 'line-opacity': 0.75, 'line-width': 1.5, 'line-dasharray': [2, 2] } });
   const isK = (k) => ['==', ['get', 'kind'], k];
   layers.push(
     { id: 'lacs', type: 'fill', source: 'domaine', filter: isK('lac'), layout: { visibility: satOn ? 'none' : 'visible' }, paint: { 'fill-color': '#1E3640' } },
@@ -180,6 +182,7 @@ function setSatellite(on) {
   if (map && map.getLayer('satellite')) {
     map.setLayoutProperty('satellite', 'visibility', on ? 'visible' : 'none');
     ['lacs', 'zone-fill'].forEach((l) => map.setLayoutProperty(l, 'visibility', on ? 'none' : 'visible'));
+    if (map.getLayer('chemins-ref')) map.setLayoutProperty('chemins-ref', 'visibility', on ? 'visible' : 'none');
   }
   const b = $('btn-sat'); if (b) b.classList.toggle('on', on);
 }

@@ -180,6 +180,78 @@ function stopRec() {
   if (!guiding) keepAwake(false);
 }
 
+
+/* ---------- Aimant : accrocher aux chemins existants et suivre un chemin ---------- */
+let aimant = true;
+const ROUTE_CLASSES = ['track', 'path', 'service', 'minor', 'tertiary', 'secondary', 'primary', 'trunk'];
+const r6 = (p) => [+p[0].toFixed(6), +p[1].toFixed(6)];
+function lignesReference(sauf) {
+  const out = [];
+  try {
+    map.querySourceFeatures('omt', { sourceLayer: 'transportation' }).forEach((f) => {
+      if (ROUTE_CLASSES.indexOf(f.properties.class) < 0) return;
+      const g = f.geometry;
+      (g.type === 'LineString' ? [g.coordinates] : g.type === 'MultiLineString' ? g.coordinates : []).forEach((l) => out.push(l));
+    });
+  } catch (e) {}
+  dyn.traces.forEach((t) => { if (t.id !== sauf) out.push(t.type === 'zone' ? ferme(t.coords) : t.coords); });
+  base.features.forEach((f) => { if (f.properties.kind === 'acces') out.push(f.geometry.coordinates); });
+  return out;
+}
+// Point le plus proche sur une ligne de référence, à moins de tolPx pixels à l'écran
+function accrocher(p, sauf, tolPx = 22) {
+  const P = map.project(p); let best = null;
+  const a = map.unproject([P.x - tolPx, P.y - tolPx]), b = map.unproject([P.x + tolPx, P.y + tolPx]);
+  const minLon = Math.min(a.lng, b.lng), maxLon = Math.max(a.lng, b.lng), minLat = Math.min(a.lat, b.lat), maxLat = Math.max(a.lat, b.lat);
+  lignesReference(sauf).forEach((l) => {
+    for (let i = 0; i < l.length - 1; i++) {
+      const s = l[i], e = l[i + 1];
+      if (Math.max(s[0], e[0]) < minLon || Math.min(s[0], e[0]) > maxLon || Math.max(s[1], e[1]) < minLat || Math.min(s[1], e[1]) > maxLat) continue;
+      const A = map.project(s), B = map.project(e), dx = B.x - A.x, dy = B.y - A.y, L2 = dx * dx + dy * dy || 1;
+      let t = ((P.x - A.x) * dx + (P.y - A.y) * dy) / L2; t = Math.max(0, Math.min(1, t));
+      // préférer les sommets (intersections) proches
+      if (t < 0.15 && Math.hypot(P.x - A.x, P.y - A.y) < tolPx) t = 0;
+      if (t > 0.85 && Math.hypot(P.x - B.x, P.y - B.y) < tolPx) t = 1;
+      const X = A.x + t * dx, Y = A.y + t * dy, d = Math.hypot(P.x - X, P.y - Y);
+      if (d <= tolPx && (!best || d < best.d)) best = { d, pt: r6([s[0] + t * (e[0] - s[0]), s[1] + t * (e[1] - s[1])]) };
+    }
+  });
+  return best ? best.pt : null;
+}
+// Chemin le plus court sur le réseau de lignes entre deux points accrochés
+function suivreChemin(a, b, sauf) {
+  const key = (p) => p[0].toFixed(5) + ',' + p[1].toFixed(5);
+  const pad = Math.max(Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1])) * 0.6 + 0.002;
+  const minLon = Math.min(a[0], b[0]) - pad, maxLon = Math.max(a[0], b[0]) + pad, minLat = Math.min(a[1], b[1]) - pad, maxLat = Math.max(a[1], b[1]) + pad;
+  const nodes = new Map(), adj = new Map();
+  const node = (p) => { const k = key(p); if (!nodes.has(k)) { nodes.set(k, p); adj.set(k, []); } return k; };
+  const link = (p, q) => { const i = node(p), j = node(q); if (i === j) return; const w = dist(p, q); adj.get(i).push([j, w]); adj.get(j).push([i, w]); };
+  const near = (p) => p[0] >= minLon && p[0] <= maxLon && p[1] >= minLat && p[1] <= maxLat;
+  // insérer a et b dans les segments qui les portent
+  const pointSur = (p, s, e) => { const k = Math.cos(rad(p[1])); const dx = (e[0] - s[0]) * k, dy = e[1] - s[1], L2 = dx * dx + dy * dy || 1e-12;
+    let t = (((p[0] - s[0]) * k) * dx + (p[1] - s[1]) * dy) / L2; t = Math.max(0, Math.min(1, t));
+    return dist(p, [s[0] + t * (e[0] - s[0]), s[1] + t * (e[1] - s[1])]) < 3; };
+  lignesReference(sauf).forEach((l) => {
+    for (let i = 0; i < l.length - 1; i++) {
+      const s = l[i], e = l[i + 1];
+      if (!near(s) && !near(e)) continue;
+      const mids = [a, b].filter((p) => pointSur(p, s, e)).sort((p, q) => dist(s, p) - dist(s, q));
+      let prev = s; mids.forEach((m) => { link(prev, m); prev = m; }); link(prev, e);
+    }
+  });
+  const A = key(a), B = key(b);
+  if (!adj.has(A) || !adj.has(B)) return null;
+  const D = new Map([[A, 0]]), from = new Map(), done = new Set(), open = [[0, A]];
+  while (open.length) {
+    open.sort((x, y) => x[0] - y[0]); const [d, k] = open.shift();
+    if (done.has(k)) continue; done.add(k); if (k === B) break;
+    adj.get(k).forEach(([j, w]) => { const nd = d + w; if (nd < (D.has(j) ? D.get(j) : Infinity)) { D.set(j, nd); from.set(j, k); open.push([nd, j]); } });
+  }
+  if (!D.has(B)) return null;
+  const path = []; let k = B; while (k) { path.unshift(r6(nodes.get(k))); k = from.get(k); }
+  return path.length > 1 && lineLength(path) < dist(a, b) * 4 + 80 ? path : null;
+}
+
 /* ---------- Dessiner un tracé point par point ---------- */
 let drawing = null;
 function majDessin() {
@@ -193,11 +265,22 @@ function majDessin() {
 }
 function commencerDessin() {
   if (window.recording) { toast('Termine d\'abord l\'enregistrement en cours.'); return; }
-  drawing = { coords: [] };
+  drawing = { coords: [], chunks: [], snaps: [] };
   setView('carte'); setSatellite(true);
   $('panel-retour').hidden = true; $('sec-panel').hidden = true; $('draw-panel').hidden = false;
-  hooks.onMapClick = (e) => { drawing.coords.push([+e.lngLat.lng.toFixed(6), +e.lngLat.lat.toFixed(6)]); majDessin(); };
-  majDessin(); toast('Touche la carte pour placer chaque point du chemin.');
+  hooks.onMapClick = (e) => {
+    const brut = r6([e.lngLat.lng, e.lngLat.lat]);
+    const s = aimant ? accrocher(brut) : null, p = s || brut;
+    let chunk = [p];
+    const n = drawing.coords.length;
+    if (s && n && drawing.snaps[drawing.snaps.length - 1]) {
+      const chemin = suivreChemin(drawing.coords[n - 1], p);
+      if (chemin) chunk = chemin.slice(1);
+    }
+    drawing.coords.push(...chunk); drawing.chunks.push(chunk.length); drawing.snaps.push(!!s);
+    majDessin();
+  };
+  majDessin(); toast(aimant ? 'Touche un chemin existant : le tracé s\'y accroche et le suit d\'un point à l\'autre.' : 'Touche la carte pour placer chaque point.');
 }
 function finDessin() { drawing = null; hooks.onMapClick = null; $('draw-panel').hidden = true; $('panel-retour').hidden = false; setSelection([]); }
 async function terminerDessin() {
@@ -312,7 +395,7 @@ function editerPoints(t) {
   edit = { trace: t, coords: coords.map((c) => c.slice()), markers: [], sel: -1, zone };
   setView('carte'); fitTrace(t); setSatellite(true);
   $('panel-retour').hidden = true; $('sec-panel').hidden = true; $('edit-panel').hidden = false;
-  hooks.onMapClick = (e) => ajouterSommet([+e.lngLat.lng.toFixed(6), +e.lngLat.lat.toFixed(6)]);
+  hooks.onMapClick = (e) => { const p = r6([e.lngLat.lng, e.lngLat.lat]); ajouterSommet((aimant && accrocher(p, t.id)) || p); };
   dessinerSommets();
   toast('Glisse un point pour le déplacer, touche la carte pour en ajouter.');
 }
@@ -322,6 +405,7 @@ function dessinerSommets() {
     const el = document.createElement('div'); el.className = 'vx' + (i === edit.sel ? ' sel' : '');
     const m = new maplibregl.Marker({ element: el, draggable: true }).setLngLat(c).addTo(map);
     m.on('drag', () => { const p = m.getLngLat(); edit.coords[i] = [+p.lng.toFixed(6), +p.lat.toFixed(6)]; majEdit(); });
+    m.on('dragend', () => { if (!aimant) return; const s = accrocher(edit.coords[i], edit.trace.id); if (s) { edit.coords[i] = s; m.setLngLat(s); majEdit(); } });
     el.addEventListener('click', (ev) => { ev.stopPropagation(); edit.sel = i; dessinerSommets(); });
     edit.markers.push(m);
   });
@@ -484,7 +568,8 @@ function initMaster() {
     if (!window.masterNip || drawing || edit || window.recording || secTrace) return;
     const t = traceSous(e); if (t) actionsTrace(t);
   };
-  $('draw-undo').onclick = () => { if (drawing) { drawing.coords.pop(); majDessin(); } };
+  $('draw-undo').onclick = () => { if (drawing && drawing.chunks.length) { const n = drawing.chunks.pop(); drawing.snaps.pop(); drawing.coords.splice(-n, n); majDessin(); } };
+  $('draw-aimant').onclick = () => { aimant = !aimant; $('draw-aimant').classList.toggle('on', aimant); $('draw-aimant').textContent = aimant ? 'Aimant : oui' : 'Aimant : non'; };
   $('draw-cancel').onclick = async () => { if (!drawing.coords.length || await confirmer('Abandonner ce dessin?')) finDessin(); };
   $('draw-done').onclick = terminerDessin;
   $('btn-sat').onclick = () => { setSatellite(!satOn); $('btn-sat-dl').hidden = !satOn; };
