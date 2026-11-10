@@ -1,6 +1,6 @@
 /* Domaine du Doré Noir — carte hors ligne, guidage, livre, mode Master */
 'use strict';
-const APP_VERSION = '0.3.5';
+const APP_VERSION = '0.3.6';
 const API = 'https://script.google.com/macros/s/AKfycbzps51_8A3kFMwmofGVydBUbukRxK7kiQ9IEzzbV3s0TijmRa27ITe81BEbBBuK4HTaDQ/exec';
 const CHALET = [-73.942520, 47.096700];
 const TILEJSON = 'https://tiles.openfreemap.org/planet';
@@ -131,7 +131,7 @@ async function refreshRemote() {
 /* ---------- Style de carte ---------- */
 function buildStyle() {
   const tpl = store.get('tileTemplate');
-  const sources = { domaine: { type: 'geojson', data: featureCollection() }, selection: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } } };
+  const sources = { domaine: { type: 'geojson', data: featureCollection() }, noms: { type: 'geojson', data: nomsLacs() }, selection: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } } };
   const layers = [{ id: 'fond', type: 'background', paint: { 'background-color': '#1B2015' } }];
   if (tpl) {
     sources.omt = { type: 'vector', tiles: [tpl], minzoom: 0, maxzoom: 14,
@@ -170,6 +170,9 @@ function buildStyle() {
       { id: 'noms-lacs', type: 'symbol', source: 'omt', 'source-layer': 'water_name', minzoom: 11,
         layout: { 'text-field': ['get', 'name'], 'text-font': [FONT], 'text-size': 12, 'text-letter-spacing': 0.1 },
         paint: { 'text-color': '#7FA6B5', 'text-halo-color': '#14170F', 'text-halo-width': 1.2 } },
+      { id: 'noms-perso', type: 'symbol', source: 'noms', minzoom: 11,
+        layout: { 'text-field': ['get', 'name'], 'text-font': [FONT], 'text-size': 12, 'text-letter-spacing': 0.1, 'text-allow-overlap': true },
+        paint: { 'text-color': '#7FA6B5', 'text-halo-color': '#14170F', 'text-halo-width': 1.2 } },
       { id: 'lieux', type: 'symbol', source: 'omt', 'source-layer': 'place',
         layout: { 'text-field': ['get', 'name'], 'text-font': [FONT], 'text-size': 13 },
         paint: { 'text-color': '#C5C8B8', 'text-halo-color': '#14170F', 'text-halo-width': 1.4 } },
@@ -200,11 +203,19 @@ const ICONS = {
   camera: '<rect x="3" y="7" width="14" height="11" rx="2"/><path d="M17 11l4-2v8l-4-2"/><circle cx="10" cy="12.5" r="2.5"/>',
   lieu: '<path d="M12 21s-7-6.5-7-12a7 7 0 0114 0c0 5.5-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/>',
 };
-const TYPES_POINT = { cache: 'Cache', saline: 'Saline', peche: 'Spot de pêche', camera: 'Caméra', danger: 'Danger', stationnement: 'Stationnement', fourche: 'Embranchement', chalet: 'Chalet', depart: 'Départ', lieu: 'Autre' };
+const TYPES_POINT = { nom_lac: 'Nom de lac (texte sur la carte)', cache: 'Cache', saline: 'Saline', peche: 'Spot de pêche', camera: 'Caméra', danger: 'Danger', stationnement: 'Stationnement', fourche: 'Embranchement', chalet: 'Chalet', depart: 'Départ', lieu: 'Autre' };
 const shortName = (n) => n.replace('Esso Saint-Michel-des-Saints', 'Esso St-Michel').replace('Départ — 500, rue des Aulnaies', 'Départ').replace('Accueil Pins-rouges — Zec Gros Brochet', 'Accueil Zec');
+// Noms de lacs ajoutés à la main : même écriture que les noms de la carte de fond
+function nomsLacs() {
+  const maitre = document.body.classList.contains('master');
+  return { type: 'FeatureCollection', features: dyn.points.filter((p) => p.type === 'nom_lac' && (maitre || p.visibilite !== 'master'))
+    .map((p) => ({ type: 'Feature', properties: { id: p.id, name: p.nom }, geometry: { type: 'Point', coordinates: [p.lon, p.lat] } })) };
+}
 function renderMarkers() {
   markers.forEach((m) => m.remove()); markers = [];
+  if (map && map.getSource('noms')) map.getSource('noms').setData(nomsLacs());
   dyn.points.forEach((p) => {
+    if (p.type === 'nom_lac') return;
     const k = p.type in ICONS ? p.type : 'lieu';
     const el = document.createElement('div');
     el.className = 'mk ' + k + (p.visibilite === 'master' ? ' prive' : '');

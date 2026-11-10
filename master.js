@@ -27,13 +27,13 @@ async function demanderNip() {
   window.masterNip = r.nip;
   document.body.classList.add('master');
   $('tab-master').hidden = false;
-  setView('master'); renderMaster(); refreshRemote(); renderLivre();
+  setView('master'); renderMaster(); if (map) renderMarkers(); refreshRemote(); renderLivre();
   toast('Mode Master activé.');
 }
 function quitterMaster() {
   window.masterNip = null; document.body.classList.remove('master'); $('tab-master').hidden = true;
   if (drawing) finDessin(); if (edit) finEdit(); setSatellite(false); $('btn-sat-dl').hidden = true;
-  hooks.onMapClick = null; setSelection([]); setView('carte'); renderLivre(); refreshRemote();
+  hooks.onMapClick = null; setSelection([]); setView('carte'); renderLivre(); if (map) renderMarkers(); refreshRemote();
 }
 
 /* ---------- File de modifications ---------- */
@@ -591,6 +591,8 @@ function initMaster() {
   $('edit-save').onclick = sauverEdit;
   hooks.onMapClickDefault = (e) => {
     if (!window.masterNip || drawing || edit || window.recording || secTrace) return;
+    const n = map.getLayer('noms-perso') && map.queryRenderedFeatures([[e.point.x - 20, e.point.y - 12], [e.point.x + 20, e.point.y + 12]], { layers: ['noms-perso'] })[0];
+    if (n) { const p = dyn.points.find((x) => x.id === n.properties.id); if (p) { editerPoint(p); return; } }
     const t = traceSous(e); if (t) actionsTrace(t);
   };
   $('draw-undo').onclick = () => { if (drawing && drawing.chunks.length) { const n = drawing.chunks.pop(); drawing.snaps.pop(); drawing.coords.splice(-n, n); majDessin(); } };

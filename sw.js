@@ -1,5 +1,5 @@
 /* Service worker — Domaine du Doré Noir */
-const VERSION = '0.3.5';
+const VERSION = '0.3.6';
 const APP_CACHE = 'app-' + VERSION;
 const TILE_CACHE = 'tuiles-v1';
 const FONT_CACHE = 'polices-v1';
