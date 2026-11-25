@@ -1,5 +1,5 @@
 /* Service worker — Ti-Coq Gestion (app du cellulaire de Kevin) */
-const VERSION = '1.0.1';
+const VERSION = '1.0.2';
 const APP_CACHE = 'ticoq-' + VERSION;
 const SHELL = ['./', 'index.html', 'app.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 

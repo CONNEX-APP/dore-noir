@@ -53,11 +53,12 @@ textarea{min-height:64px;resize:vertical}
 .chip{display:inline-block;white-space:nowrap;border-radius:20px;padding:4px 10px;font:700 11px Inter;text-transform:uppercase;letter-spacing:.5px}
 .c-a_approuver{background:var(--vert);animation:fl 1.2s infinite}
 .c-approuvee{background:var(--bleu)}
-.c-placee,.c-confirmee,.c-recue{background:#3d4148}
+.c-placee,.c-confirmee{background:#3d4148}
+.c-recue{background:transparent;border:1px solid var(--vert);color:#7fdca5}
 .c-refusee{background:var(--rouge)}
 @keyframes fl{50%{opacity:.45}}
 .li{display:flex;justify-content:space-between;gap:10px;padding:12px 0;border-top:1px solid var(--ligne)}
-.li:first-child{border-top:0}
+.li:first-child,.store+.li{border-top:0}
 .mut{color:var(--mut)}
 .small{font-size:13px}
 .banner{background:var(--jaune);color:#111;border-radius:14px;padding:14px;margin-bottom:14px;font-weight:600}

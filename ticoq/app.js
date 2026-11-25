@@ -93,7 +93,8 @@ const JOURS = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
 const MOIS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
 function frD(iso) { if (!iso) return ''; const d = new Date(String(iso).slice(0, 10) + 'T12:00:00'); return isNaN(d) ? iso : JOURS[d.getDay()] + ' ' + d.getDate() + ' ' + MOIS[d.getMonth()]; }
 function hm(s) { return String(s || '').slice(11, 16); }
-const STATUS = { a_approuver: 'À approuver', approuvee: 'Approuvée · à placer', placee: 'Placée chez Exceldor', confirmee: 'Confirmée', recue: 'Reçue', refusee: 'Refusée' };
+const STATUS = { a_approuver: 'À approuver', approuvee: 'À placer', placee: 'Placée chez Exceldor', confirmee: 'Confirmée', recue: 'Reçue', refusee: 'Refusée' };
+function chipOf(o) { const sg = stageOf(o); if (sg === 'done') return ['recue', 'Reçue' + (o.diff ? ' · écart' : '')]; return [o.status, STATUS[o.status] || o.status]; }
 const n = (v) => (v == null || v === '' ? '—' : esc(v));
 
 function todoCard(o) {
@@ -119,17 +120,28 @@ function histHtml(o) {
 }
 function restLine(o) {
   const q = o.status === 'refusee' ? o.qty : (o.approvedQty != null ? o.approvedQty : o.qty);
-  return '<div class="li"><div><b>' + esc(o.name) + '</b> · ' + esc(q) + ' caisses<div class="small mut">Livraison ' + esc(frD(o.delivery)) +
-    (o.decidedAt ? ' · décidée ' + esc(hm(o.decidedAt)) : '') + (o.auto ? ' (auto)' : '') + '</div>' +
+  return '<div class="li"><div><b>Livraison ' + esc(frD(o.delivery)) + '</b> · ' + esc(q) + ' caisses<div class="small mut">' + (o.status === 'refusee' ? 'Refusée ' + esc(hm(o.decidedAt)) + ' · en attente que le gérant la refasse' : 'Approuvée ' + esc(hm(o.decidedAt)) + (o.auto ? ' (auto)' : '')) + '</div>' +
     (o.kComment ? '<div class="small" style="margin-top:4px">« ' + esc(o.kComment) + ' »</div>' : '') + histHtml(o) + '</div>' +
-    '<div><span class="chip c-' + esc(o.status) + '">' + esc(STATUS[o.status] || o.status) + '</span></div></div>';
+    '<div><span class="chip c-' + esc(chipOf(o)[0]) + '">' + esc(chipOf(o)[1]) + '</span></div></div>';
+}
+const ST_ORDER = ['stl', 'cap', 'bel', 'j23'];
+function stageOf(o) { return o.stage || (o.status === 'a_approuver' || o.status === 'refusee' ? 'todo' : (['recue', 'recu', 'ferme'].indexOf(o.status) >= 0 ? 'done' : 'recv')); }
+// Regroupe par succursale (St-Louis, Cap, Bellefeuille, Jean-XXIII), livraison la plus récente en premier
+function byStore(list) {
+  return ST_ORDER.map((st) => list.filter((o) => o.st === st).sort((a, b) => String(b.delivery || '').localeCompare(String(a.delivery || ''))))
+    .filter((g) => g.length)
+    .map((g) => '<div class="card"><div class="store" style="font-size:18px;margin-bottom:2px">' + esc(g[0].name) + '</div>' + g.map(restLine).join('') + '</div>').join('');
 }
 function render() {
   const todo = ORDERS.filter((o) => o.status === 'a_approuver');
-  const rest = ORDERS.filter((o) => o.status !== 'a_approuver');
-  $('todo').innerHTML = '<div class="lbl">Commandes de poulet à approuver</div>' +
-    (todo.length ? todo.map(todoCard).join('') : '<div class="card empty"><b>Rien à approuver 👌</b>Tu recevras une notification dès qu\'un gérant en envoie une.</div>');
-  $('rest').innerHTML = rest.length ? '<div class="lbl">Récentes</div><div class="card">' + rest.map(restLine).join('') + '</div>' : '';
+  const waiting = ORDERS.filter((o) => o.status === 'refusee' && stageOf(o) === 'todo');
+  const recv = ORDERS.filter((o) => stageOf(o) === 'recv');
+  const done = ORDERS.filter((o) => stageOf(o) === 'done');
+  $('todo').innerHTML = '<div class="lbl">① À approuver</div>' +
+    (todo.length ? todo.sort((a, b) => ST_ORDER.indexOf(a.st) - ST_ORDER.indexOf(b.st)).map(todoCard).join('') : (waiting.length ? '' : '<div class="card empty"><b>Rien à approuver 👌</b>Tu recevras une notification dès qu\'un gérant en envoie une.</div>')) +
+    (waiting.length ? byStore(waiting) : '');
+  $('rest').innerHTML = '<div class="lbl">② Approuvées · à recevoir</div>' + (recv.length ? byStore(recv) : '<div class="card empty small">Aucune commande en attente de livraison.</div>') +
+    '<div class="lbl">③ Finalisées · reçues</div>' + (done.length ? byStore(done) : '<div class="card empty small">Aucune commande reçue ces 10 derniers jours.</div>');
   try { if (navigator.setAppBadge) { if (todo.length) navigator.setAppBadge(todo.length); else navigator.clearAppBadge(); } } catch (e) {}
 }
 async function load() {
