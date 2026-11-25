@@ -113,9 +113,7 @@ function todoCard(o) {
   }
   return '<div class="todo-box" data-k="' + esc(k) + '">' + head +
     '<div class="small mut" style="margin-top:6px">Envoyée par ' + esc(o.by || '—') + '</div>' +
-    '<div class="grid"><div><span>Standing</span><b>' + n(c.standing) + '</b></div><div><span>Moyenne</span><b>' + n(c.avg) + '</b></div><div><span>Dernière</span><b>' + n(c.last) + '</b></div>' +
-    '<div><span>Stock</span><b>' + n(c.stk) + '</b></div><div><span>En route</span><b>' + n(c.er) + '</b></div><div><span>Besoin</span><b>' + n(c.need) + '</b></div></div>' +
-    (c.below ? '<div class="why" style="border-color:var(--rouge)">Standing sous la moyenne</div>' : '') + why +
+    calcHtml(o) +
     '<div class="step"><button data-d="-1">−</button><input type="number" inputmode="numeric" class="q" value="' + esc(o.qty) + '"><button data-d="1">+</button><span class="small mut">caisses à approuver</span></div>' +
     '<textarea class="com" placeholder="Commentaire au gérant (obligatoire pour refuser)"></textarea>' +
     '<div class="acts"><button class="btn no" data-act="refuse">Refuser</button><button class="btn ok" data-act="ok">Approuver</button></div>' +
@@ -125,15 +123,49 @@ function todoCard(o) {
 function histHtml(o) {
   return (o.hist || []).filter((h) => h.status === 'refusee').map((h) => '<div class="small" style="margin-top:4px;color:#ff8a8d">Refusée ' + esc(hm(h.decidedAt)) + ' (' + esc(h.qty) + ' caisses)' + (h.kComment ? ' : « ' + esc(h.kComment) + ' »' : '') + ' — refaite par le gérant</div>').join('');
 }
+// Heure en début de ligne : « 10:41 » si aujourd'hui, sinon « 20 nov. 10:41 »
+function tAt(ts) {
+  if (!ts) return '';
+  const d = String(ts).slice(0, 10), today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  if (d === today) return hm(ts);
+  const x = new Date(d + 'T12:00:00');
+  return (isNaN(x) ? d : x.getDate() + ' ' + MOIS[x.getMonth()]) + ' ' + hm(ts);
+}
+// Chronologie : une ligne par événement, l'heure au début
+function timeline(o) {
+  const ev = [];
+  (o.hist || []).filter((h) => h.status === 'refusee').forEach((h) => {
+    if (h.at) ev.push([h.at, 'Envoyée' + (h.by ? ' par ' + h.by : '') + ' · ' + h.qty + ' caisses', '']);
+    if (h.decidedAt) ev.push([h.decidedAt, 'Refusée' + (h.kComment ? ' : « ' + h.kComment + ' »' : ''), 'r']);
+  });
+  if (o.at) ev.push([o.at, ((o.hist || []).length ? 'Refaite' : 'Envoyée') + (o.by ? ' par ' + o.by : '') + ' · ' + o.qty + ' caisses', '']);
+  if (o.decidedAt) {
+    if (o.status === 'refusee') ev.push([o.decidedAt, 'Refusée' + (o.kComment ? ' : « ' + o.kComment + ' »' : ''), 'r']);
+    else ev.push([o.decidedAt, 'Approuvée' + (o.auto ? ' automatiquement' : '') + ' · ' + (o.approvedQty != null ? o.approvedQty : o.qty) + ' caisses' + (o.kComment ? ' : « ' + o.kComment + ' »' : ''), 'g']);
+  }
+  if (o.placedAt) ev.push([o.placedAt, 'Placée chez Exceldor', '']);
+  if (o.recvAt) ev.push([o.recvAt, 'Reçue' + (o.recvBy ? ' par ' + o.recvBy : '') + (o.diff ? ' · avec écart' : ''), 'g']);
+  else if (stageOf(o) === 'done') ev.push(['', 'Reçue' + (o.diff ? ' · avec écart' : ''), 'g']);
+  ev.sort((a, b) => (a[0] && b[0] ? String(a[0]).localeCompare(String(b[0])) : (a[0] ? -1 : 1)));
+  return '<div class="tl">' + ev.map((e) => '<div class="ev ' + e[2] + '"><span class="t">' + esc(tAt(e[0]) || '—') + '</span><span>' + esc(e[1]) + '</span></div>').join('') + '</div>';
+}
+// Détail du calcul (le même que dans la console)
+function calcHtml(o) {
+  const c = o.calc || {};
+  const why = [o.reason && 'Raison du gérant : ' + o.reason, o.stdWhy && 'Standing : ' + o.stdWhy, o.erWhy && 'En route : ' + o.erWhy, o.stkCalc && 'Stock : ' + o.stkCalc]
+    .filter(Boolean).map((w) => '<div class="why">' + esc(w) + '</div>').join('');
+  return '<div class="grid"><div><span>Standing</span><b>' + n(c.standing) + '</b></div><div><span>Moyenne</span><b>' + n(c.avg) + '</b></div><div><span>Dernière</span><b>' + n(c.last) + '</b></div>' +
+    '<div><span>Stock</span><b>' + n(c.stk) + '</b></div><div><span>En route</span><b>' + n(c.er) + '</b></div><div><span>Besoin</span><b>' + n(c.need) + '</b></div></div>' +
+    (c.sug != null ? '<div class="small">Suggéré par le calcul : <b>' + esc(c.sug) + ' caisses</b> · demandé : <b>' + esc(o.qty) + '</b></div>' : '') +
+    (c.below ? '<div class="why" style="border-color:var(--rouge)">Standing sous la moyenne</div>' : '') + why;
+}
 function restLine(o) {
   const q = o.status === 'refusee' ? o.qty : (o.approvedQty != null ? o.approvedQty : o.qty);
   const sg = stageOf(o);
   const cls = o.status === 'refusee' ? 'past ref' : (sg === 'done' ? 'past done' : 'past open');
-  const sub = o.status === 'refusee' ? 'Refusée ' + esc(hm(o.decidedAt)) + ' · en attente que le gérant la refasse'
-    : (sg === 'done' ? 'Reçue' + (o.diff ? ' · avec écart' : '') : esc(STATUS[o.status] || o.status) + ' · pas encore reçue') + ' · approuvée ' + esc(hm(o.decidedAt)) + (o.auto ? ' (auto)' : '');
-  return '<div class="' + cls + '"><div class="row"><b>Livraison ' + esc(frD(o.delivery)) + '</b><b>' + esc(q) + ' caisses</b></div>' +
-    '<div class="small" style="opacity:.85;margin-top:2px">' + sub + '</div>' +
-    (o.kComment ? '<div class="small" style="margin-top:4px">« ' + esc(o.kComment) + ' »</div>' : '') + histHtml(o) + '</div>';
+  const k = o.st + '|' + o.id;
+  return '<div class="' + cls + '" data-past="' + esc(k) + '"><div class="row"><b>Livraison ' + esc(frD(o.delivery)) + '</b><b>' + esc(q) + ' caisses</b></div>' +
+    timeline(o) + (DET[k] ? '<div class="pcalc">' + calcHtml(o) + '</div>' : '<div class="small mut" style="margin-top:6px">Touche pour voir le calcul</div>') + '</div>';
 }
 const ST_ORDER = ['stl', 'cap', 'bel', 'j23'];
 function stageOf(o) { return o.stage || (o.status === 'a_approuver' || o.status === 'refusee' ? 'todo' : (['recue', 'recu', 'ferme'].indexOf(o.status) >= 0 ? 'done' : 'recv')); }
@@ -175,6 +207,8 @@ async function load() {
 $('btnRefresh').onclick = load;
 
 $('todo').addEventListener('click', async (ev) => {
+  const pb = ev.target.closest('[data-past]');
+  if (pb) { DET[pb.dataset.past] = !DET[pb.dataset.past]; render(); return; }
   const b = ev.target.closest('button'); if (!b) return;
   if (b.dataset.st) { OPEN[b.dataset.st] = !OPEN[b.dataset.st]; render(); return; }
   const card = b.closest('.todo-box'); if (!card) return;
