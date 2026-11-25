@@ -108,16 +108,20 @@ function todoCard(o) {
     (c.sug != null ? '<div class="small ' + (diff ? '' : 'mut') + '" style="text-align:right' + (diff ? ';color:var(--jaune);font-weight:700' : '') + '">Suggéré<br><b style="font-size:20px">' + esc(c.sug) + '</b></div>' : '') + '</div>' +
     '<div class="grid"><div><span>Standing</span><b>' + n(c.standing) + '</b></div><div><span>Moyenne</span><b>' + n(c.avg) + '</b></div><div><span>Dernière</span><b>' + n(c.last) + '</b></div>' +
     '<div><span>Stock</span><b>' + n(c.stk) + '</b></div><div><span>En route</span><b>' + n(c.er) + '</b></div><div><span>Besoin</span><b>' + n(c.need) + '</b></div></div>' +
-    (c.below ? '<div class="why" style="border-color:var(--rouge)">Standing sous la moyenne</div>' : '') + why +
+    (c.below ? '<div class="why" style="border-color:var(--rouge)">Standing sous la moyenne</div>' : '') + why + histHtml(o) +
     '<div class="step"><button data-d="-1">−</button><input type="number" inputmode="numeric" class="q" value="' + esc(o.qty) + '"><button data-d="1">+</button><span class="small mut">caisses à approuver</span></div>' +
     '<textarea class="com" placeholder="Commentaire au gérant (obligatoire pour refuser)"></textarea>' +
     '<div class="acts"><button class="btn no" data-act="refuse">Refuser</button><button class="btn ok" data-act="ok">Approuver</button></div></div>';
+}
+// Historique : la même commande a été refusée puis refaite
+function histHtml(o) {
+  return (o.hist || []).filter((h) => h.status === 'refusee').map((h) => '<div class="small" style="margin-top:4px;color:#ff8a8d">Refusée ' + esc(hm(h.decidedAt)) + ' (' + esc(h.qty) + ' caisses)' + (h.kComment ? ' : « ' + esc(h.kComment) + ' »' : '') + ' — refaite par le gérant</div>').join('');
 }
 function restLine(o) {
   const q = o.status === 'refusee' ? o.qty : (o.approvedQty != null ? o.approvedQty : o.qty);
   return '<div class="li"><div><b>' + esc(o.name) + '</b> · ' + esc(q) + ' caisses<div class="small mut">Livraison ' + esc(frD(o.delivery)) +
     (o.decidedAt ? ' · décidée ' + esc(hm(o.decidedAt)) : '') + (o.auto ? ' (auto)' : '') + '</div>' +
-    (o.kComment ? '<div class="small" style="margin-top:4px">« ' + esc(o.kComment) + ' »</div>' : '') + '</div>' +
+    (o.kComment ? '<div class="small" style="margin-top:4px">« ' + esc(o.kComment) + ' »</div>' : '') + histHtml(o) + '</div>' +
     '<div><span class="chip c-' + esc(o.status) + '">' + esc(STATUS[o.status] || o.status) + '</span></div></div>';
 }
 function render() {
