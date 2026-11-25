@@ -97,22 +97,29 @@ const STATUS = { a_approuver: 'À approuver', approuvee: 'À placer', placee: 'P
 function chipOf(o) { const sg = stageOf(o); if (sg === 'done') return ['recue', 'Reçue' + (o.diff ? ' · écart' : '')]; return [o.status, STATUS[o.status] || o.status]; }
 const n = (v) => (v == null || v === '' ? '—' : esc(v));
 
+const OPEN = {};   // succursales ouvertes (triangle)
+const DET = {};    // commandes dont les détails sont ouverts
 function todoCard(o) {
   const c = o.calc || {};
+  const k = o.st + '|' + o.id;
   const why = [o.reason && 'Raison du gérant : ' + o.reason, o.stdWhy && 'Standing : ' + o.stdWhy, o.erWhy && 'En route : ' + o.erWhy, o.stkCalc && 'Stock : ' + o.stkCalc]
     .filter(Boolean).map((w) => '<div class="why">' + esc(w) + '</div>').join('');
   const diff = c.sug != null && Number(c.sug) !== Number(o.qty);
-  return '<div class="card todo" data-k="' + esc(o.st + '|' + o.id) + '">' +
-    '<div class="row"><div><div class="store">' + esc(o.name) + '</div><div class="small mut">Livraison ' + esc(frD(o.delivery)) + ' · envoyée à ' + esc(hm(o.at)) + (o.by ? ' par ' + esc(o.by) : '') + '</div></div>' +
-    '<span class="chip c-a_approuver">À approuver</span></div>' +
-    '<div class="row" style="margin-top:12px"><div class="qty">' + esc(o.qty) + ' <small>caisses demandées</small></div>' +
-    (c.sug != null ? '<div class="small ' + (diff ? '' : 'mut') + '" style="text-align:right' + (diff ? ';color:var(--jaune);font-weight:700' : '') + '">Suggéré<br><b style="font-size:20px">' + esc(c.sug) + '</b></div>' : '') + '</div>' +
+  const head = '<div class="row"><div><div class="qty">' + esc(o.qty) + ' <small>caisses</small></div><div class="small mut" style="margin-top:4px">Livraison ' + esc(frD(o.delivery)) + ' · envoyée à ' + esc(hm(o.at)) + '</div></div>' +
+    (c.sug != null ? '<div class="small ' + (diff ? '' : 'mut') + '" style="text-align:right' + (diff ? ';color:var(--jaune);font-weight:700' : '') + '">Suggéré<br><b style="font-size:20px">' + esc(c.sug) + '</b></div>' : '') + '</div>' + histHtml(o);
+  if (!DET[k]) {
+    return '<div class="todo-box" data-k="' + esc(k) + '">' + head +
+      '<div class="acts"><button class="btn sec" data-act="det">Détails</button><button class="btn ok" data-act="ok">Approuver</button></div></div>';
+  }
+  return '<div class="todo-box" data-k="' + esc(k) + '">' + head +
+    '<div class="small mut" style="margin-top:6px">Envoyée par ' + esc(o.by || '—') + '</div>' +
     '<div class="grid"><div><span>Standing</span><b>' + n(c.standing) + '</b></div><div><span>Moyenne</span><b>' + n(c.avg) + '</b></div><div><span>Dernière</span><b>' + n(c.last) + '</b></div>' +
     '<div><span>Stock</span><b>' + n(c.stk) + '</b></div><div><span>En route</span><b>' + n(c.er) + '</b></div><div><span>Besoin</span><b>' + n(c.need) + '</b></div></div>' +
-    (c.below ? '<div class="why" style="border-color:var(--rouge)">Standing sous la moyenne</div>' : '') + why + histHtml(o) +
+    (c.below ? '<div class="why" style="border-color:var(--rouge)">Standing sous la moyenne</div>' : '') + why +
     '<div class="step"><button data-d="-1">−</button><input type="number" inputmode="numeric" class="q" value="' + esc(o.qty) + '"><button data-d="1">+</button><span class="small mut">caisses à approuver</span></div>' +
     '<textarea class="com" placeholder="Commentaire au gérant (obligatoire pour refuser)"></textarea>' +
-    '<div class="acts"><button class="btn no" data-act="refuse">Refuser</button><button class="btn ok" data-act="ok">Approuver</button></div></div>';
+    '<div class="acts"><button class="btn no" data-act="refuse">Refuser</button><button class="btn ok" data-act="ok">Approuver</button></div>' +
+    '<div class="center" style="margin-top:8px"><button class="btn sec small" data-act="det">Masquer les détails</button></div></div>';
 }
 // Historique : la même commande a été refusée puis refaite
 function histHtml(o) {
@@ -120,28 +127,37 @@ function histHtml(o) {
 }
 function restLine(o) {
   const q = o.status === 'refusee' ? o.qty : (o.approvedQty != null ? o.approvedQty : o.qty);
-  return '<div class="li"><div><b>Livraison ' + esc(frD(o.delivery)) + '</b> · ' + esc(q) + ' caisses<div class="small mut">' + (o.status === 'refusee' ? 'Refusée ' + esc(hm(o.decidedAt)) + ' · en attente que le gérant la refasse' : 'Approuvée ' + esc(hm(o.decidedAt)) + (o.auto ? ' (auto)' : '')) + '</div>' +
-    (o.kComment ? '<div class="small" style="margin-top:4px">« ' + esc(o.kComment) + ' »</div>' : '') + histHtml(o) + '</div>' +
-    '<div><span class="chip c-' + esc(chipOf(o)[0]) + '">' + esc(chipOf(o)[1]) + '</span></div></div>';
+  const sg = stageOf(o);
+  const cls = o.status === 'refusee' ? 'past ref' : (sg === 'done' ? 'past done' : 'past open');
+  const sub = o.status === 'refusee' ? 'Refusée ' + esc(hm(o.decidedAt)) + ' · en attente que le gérant la refasse'
+    : (sg === 'done' ? 'Reçue' + (o.diff ? ' · avec écart' : '') : esc(STATUS[o.status] || o.status) + ' · pas encore reçue') + ' · approuvée ' + esc(hm(o.decidedAt)) + (o.auto ? ' (auto)' : '');
+  return '<div class="' + cls + '"><div class="row"><b>Livraison ' + esc(frD(o.delivery)) + '</b><b>' + esc(q) + ' caisses</b></div>' +
+    '<div class="small" style="opacity:.85;margin-top:2px">' + sub + '</div>' +
+    (o.kComment ? '<div class="small" style="margin-top:4px">« ' + esc(o.kComment) + ' »</div>' : '') + histHtml(o) + '</div>';
 }
 const ST_ORDER = ['stl', 'cap', 'bel', 'j23'];
 function stageOf(o) { return o.stage || (o.status === 'a_approuver' || o.status === 'refusee' ? 'todo' : (['recue', 'recu', 'ferme'].indexOf(o.status) >= 0 ? 'done' : 'recv')); }
-// Regroupe par succursale (St-Louis, Cap, Bellefeuille, Jean-XXIII), livraison la plus récente en premier
-function byStore(list) {
-  return ST_ORDER.map((st) => list.filter((o) => o.st === st).sort((a, b) => String(b.delivery || '').localeCompare(String(a.delivery || ''))))
-    .filter((g) => g.length)
-    .map((g) => '<div class="card"><div class="store" style="font-size:18px;margin-bottom:2px">' + esc(g[0].name) + '</div>' + g.map(restLine).join('') + '</div>').join('');
+const NAMES = { stl: 'St-Louis', cap: 'Cap', bel: 'Bellefeuille', j23: 'Jean-XXIII' };
+function storeCard(st) {
+  const L = ORDERS.filter((o) => o.st === st);
+  const todo = L.filter((o) => o.status === 'a_approuver');
+  const past = L.filter((o) => o.status !== 'a_approuver').sort((a, b) => {
+    const r = (o) => (o.status === 'refusee' ? 0 : stageOf(o) === 'recv' ? 1 : 2);
+    return r(a) - r(b) || String(b.delivery || '').localeCompare(String(a.delivery || ''));
+  });
+  const nOpen = past.filter((o) => stageOf(o) === 'recv').length;
+  const open = !!OPEN[st];
+  return '<div class="card st' + (todo.length ? ' todo' : '') + '">' +
+    '<button class="sthead" data-st="' + st + '"><span class="tri' + (open ? ' on' : '') + '">▸</span><span class="store">' + esc(NAMES[st]) + '</span>' +
+    (todo.length ? '<span class="chip c-a_approuver">' + todo.length + ' à approuver</span>' : (past.some((o) => o.status === 'refusee') ? '<span class="small" style="color:#ff8a8d;font-weight:700">Refusée · à refaire</span>' : (nOpen ? '<span class="small mut">' + nOpen + ' à recevoir</span>' : ''))) + '</button>' +
+    todo.map(todoCard).join('') +
+    (open ? (past.length ? '<div class="pastlist">' + past.map(restLine).join('') + '</div>' : '<div class="small mut" style="padding:10px 4px 2px">Aucune commande ces 10 derniers jours.</div>') : '') +
+    '</div>';
 }
 function render() {
   const todo = ORDERS.filter((o) => o.status === 'a_approuver');
-  const waiting = ORDERS.filter((o) => o.status === 'refusee' && stageOf(o) === 'todo');
-  const recv = ORDERS.filter((o) => stageOf(o) === 'recv');
-  const done = ORDERS.filter((o) => stageOf(o) === 'done');
-  $('todo').innerHTML = '<div class="lbl">① À approuver</div>' +
-    (todo.length ? todo.sort((a, b) => ST_ORDER.indexOf(a.st) - ST_ORDER.indexOf(b.st)).map(todoCard).join('') : (waiting.length ? '' : '<div class="card empty"><b>Rien à approuver 👌</b>Tu recevras une notification dès qu\'un gérant en envoie une.</div>')) +
-    (waiting.length ? byStore(waiting) : '');
-  $('rest').innerHTML = '<div class="lbl">② Approuvées · à recevoir</div>' + (recv.length ? byStore(recv) : '<div class="card empty small">Aucune commande en attente de livraison.</div>') +
-    '<div class="lbl">③ Finalisées · reçues</div>' + (done.length ? byStore(done) : '<div class="card empty small">Aucune commande reçue ces 10 derniers jours.</div>');
+  $('todo').innerHTML = ST_ORDER.map(storeCard).join('');
+  $('rest').innerHTML = '';
   try { if (navigator.setAppBadge) { if (todo.length) navigator.setAppBadge(todo.length); else navigator.clearAppBadge(); } } catch (e) {}
 }
 async function load() {
@@ -150,7 +166,7 @@ async function load() {
     const r = await api({ a: 'list', t: tok() });
     ORDERS = r.orders || [];
     // Ne pas effacer un commentaire en cours d'écriture
-    const typing = Array.from(document.querySelectorAll('#todo .com')).some((x) => x.value.trim()) || ($('todo').contains(document.activeElement) && document.activeElement !== document.body);
+    const typing = Array.from(document.querySelectorAll('#todo .com')).some((x) => x.value.trim()) || ($('todo').contains(document.activeElement) && /INPUT|TEXTAREA/.test(document.activeElement.tagName));
     if (!typing) render();
     $('foot').textContent = 'Mis à jour à ' + hm(r.now);
   } catch (e) { toast(e.message, true); }
@@ -160,16 +176,20 @@ $('btnRefresh').onclick = load;
 
 $('todo').addEventListener('click', async (ev) => {
   const b = ev.target.closest('button'); if (!b) return;
-  const card = b.closest('.card'); if (!card) return;
+  if (b.dataset.st) { OPEN[b.dataset.st] = !OPEN[b.dataset.st]; render(); return; }
+  const card = b.closest('.todo-box'); if (!card) return;
   const qi = card.querySelector('.q');
   if (b.dataset.d) { qi.value = Math.max(0, (Number(qi.value) || 0) + Number(b.dataset.d)); return; }
   const act = b.dataset.act; if (!act) return;
+  if (act === 'det') { DET[card.dataset.k] = !DET[card.dataset.k]; render(); return; }
   const [st, id] = card.dataset.k.split('|');
-  const com = card.querySelector('.com').value.trim();
-  if (act === 'refuse' && !com) { toast('Écris la raison du refus pour le gérant.', true); card.querySelector('.com').focus(); return; }
+  const cm = card.querySelector('.com');
+  const com = cm ? cm.value.trim() : '';
+  const o = ORDERS.find((x) => x.st === st && x.id === id) || {};
+  if (act === 'refuse' && !com) { toast('Écris la raison du refus pour le gérant.', true); if (cm) cm.focus(); return; }
   card.querySelectorAll('button').forEach((x) => { x.disabled = true; });
   try {
-    await api({ a: 'decide', t: tok(), st, id, action: act, qty: qi.value, comment: com });
+    await api({ a: 'decide', t: tok(), st, id, action: act, qty: qi ? qi.value : o.qty, comment: com });
     toast(act === 'ok' ? 'Approuvée ✅' : 'Refusée — le gérant verra ta raison');
     await load();
   } catch (e) { toast(e.message, true); card.querySelectorAll('button').forEach((x) => { x.disabled = false; }); load(); }

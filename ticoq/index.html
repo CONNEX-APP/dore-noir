@@ -68,6 +68,17 @@ textarea{min-height:64px;resize:vertical}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom));background:#fff;color:#111;padding:12px 18px;border-radius:24px;font-weight:600;box-shadow:0 6px 24px #0008;max-width:90%;z-index:9}
 .toast.err{background:var(--rouge);color:#fff}
 .center{text-align:center}
+.sthead{all:unset;display:flex;align-items:center;gap:10px;width:100%;cursor:pointer}
+.sthead .store{flex:1}
+.tri{display:inline-block;color:var(--mut);font-size:20px;transition:transform .15s}
+.tri.on{transform:rotate(90deg);color:#fff}
+.card.st{padding:14px 16px}
+.todo-box{margin-top:14px;padding-top:14px;border-top:1px solid var(--ligne)}
+.pastlist{margin-top:12px;display:grid;gap:8px}
+.past{border-radius:12px;padding:10px 12px}
+.past.open{border:2px solid var(--vert);background:#16261d}
+.past.done{border:1px solid #3d4148;background:#2a2d33;color:#b9bec6}
+.past.ref{border:2px solid var(--rouge);background:#2a1718}
 [hidden]{display:none!important}
 .share{display:inline-block;vertical-align:-4px;width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2}
 ol{padding-left:20px}ol li{margin:8px 0}
