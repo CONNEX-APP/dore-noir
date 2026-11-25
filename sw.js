@@ -1,5 +1,5 @@
 /* Service worker — Domaine du Doré Noir */
-const VERSION = '0.3.12';
+const VERSION = '0.3.13';
 const APP_CACHE = 'app-' + VERSION;
 const TILE_CACHE = 'tuiles-v1';
 const FONT_CACHE = 'polices-v1';
@@ -39,6 +39,7 @@ self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
+  if (url.pathname.indexOf('/ticoq/') >= 0) return; // app Ti-Coq : son propre service worker
   if (url.hostname === 'tiles.openfreemap.org' && url.pathname !== '/planet') {
     e.respondWith(cacheFirst(req, TILE_CACHE));
     return;

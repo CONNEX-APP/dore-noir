@@ -1,0 +1,18 @@
+{
+  "name": "Ti-Coq Gestion",
+  "short_name": "Ti-Coq",
+  "description": "Commandes de poulet à approuver et gestion Ti-Coq",
+  "lang": "fr-CA",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#111316",
+  "theme_color": "#111316",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
