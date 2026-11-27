@@ -4,7 +4,7 @@
    16 h Caisse 1 (souper) ouverte + Caisse 2 (PM) fermée et ré-ouverte (veillée) · 20 h Caisse 1 fermée · 22 h Caisse 2 fermée.
    Les règles sont dans le serveur (backend/ticoq-caisseapp.js) ; l'app demande l'état chaque minute. */
 'use strict';
-const VERSION = '1.1.0';
+const VERSION = '1.1.1';
 const API = 'https://www.ti-coq.com/_functions/caisseapp';
 const PAGE = 'https://www.ti-coq.com/caisse';
 const STORES = [['stl', 'St-Louis-de-France'], ['cap', 'Cap-de-la-Madeleine'], ['bel', 'Bellefeuille'], ['j23', 'Jean-XXIII']];
@@ -217,6 +217,8 @@ $('gerGo').addEventListener('click', () => {
   const code = $('gerCode').value.trim();
   if (!code) { $('gerErr').textContent = 'Entre ton code.'; return; }
   S.gCode = code; S.gOk = false; $('gerGo').disabled = true; $('gerErr').textContent = 'Vérification…';
+  // la console doit être visible pour se charger (Wix ne charge pas un module caché) : elle charge derrière l'écran du code
+  $('gwrap').classList.remove('hide'); gerLayout();
   $('gframe').src = GPAGE + '?r=' + Date.now();
   let n = 0; clearInterval(S.gT); S.gT = setInterval(() => { gerLogin(); if (++n > 15) { clearInterval(S.gT); if (!S.gOk) gerFail('La console ne répond pas. Vérifie la connexion et réessaie.'); } }, 3000);
 });
