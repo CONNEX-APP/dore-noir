@@ -1,0 +1,42 @@
+<!doctype html><html lang="fr-CA"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Dalle">
+<meta name="theme-color" content="#0b0b0c"><meta name="robots" content="noindex">
+<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<title>Dalle Ti-Coq</title>
+<!-- Dalle Ti-Coq — app iPad v1.0.0 (27 nov. 2026). Garde la dernière Dalle affichée quand le Wi-Fi coupe
+     et se remet à jour toute seule au retour du réseau. Les données viennent de ti-coq.com/_functions/dalle. -->
+<style>
+html,body{margin:0;height:100%;background:#0b0b0c;overflow:hidden;font-family:-apple-system,system-ui,sans-serif;color:#fff;-webkit-user-select:none;user-select:none}
+.buf{position:absolute;inset:0;border:0;width:100%;height:100%;display:block;background:#0b0b0c;visibility:hidden}
+.buf.on{visibility:visible}
+.lay{position:absolute;inset:0;border:0;width:100%;height:100%;background:#0b0b0c;visibility:hidden;z-index:5}.lay.on{visibility:visible}
+.hid{position:absolute;width:1px;height:1px;left:-10px;top:-10px;border:0;visibility:hidden}
+#pair{position:absolute;inset:0;border:0;width:100%;height:100%;background:#0b0b0c;z-index:6;display:none}
+#ov{position:fixed;inset:0;background:rgba(10,10,12,.95);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:24px;z-index:9}
+#ov .i{font-size:56px}#ov .t{font-size:22px;font-weight:800}
+#ov button{font-size:22px;font-weight:900;padding:18px 30px;border-radius:14px;border:0;background:#dc2626;color:#fff}
+#ov small{color:#a1a1aa;font-size:14px;max-width:460px;line-height:1.4}
+#st{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(9px + env(safe-area-inset-bottom));z-index:8;font:600 12px system-ui,sans-serif;padding:4px 10px;border-radius:999px;background:rgba(20,83,45,.85);color:#dcfce7;white-space:nowrap;pointer-events:none}
+#st .n{opacity:.85}
+#st.bad{background:#b45309;color:#fff;font-size:15px;padding:7px 14px}
+#st.al{background:#dc2626;color:#fff;animation:fl 1s infinite;font-size:14px}
+@keyframes fl{50%{background:#7f1d1d}}
+#mb{position:fixed;right:calc(8px + env(safe-area-inset-right));bottom:calc(6px + env(safe-area-inset-bottom));z-index:8;font-size:18px;background:rgba(39,39,42,.7);border:0;color:#fff;border-radius:999px;width:34px;height:34px}
+#menu{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10;display:none;align-items:center;justify-content:center}
+#menu .box{background:#18181b;border-radius:16px;padding:18px;width:min(420px,90vw);display:flex;flex-direction:column;gap:10px}
+#menu h3{margin:0 0 4px;font-size:18px}#menu p{margin:0;color:#a1a1aa;font-size:13px;line-height:1.4}
+#menu button{font-size:17px;font-weight:700;padding:13px;border-radius:12px;border:0;background:#3f3f46;color:#fff}
+#menu button.red{background:#7f1d1d}
+</style></head><body>
+<iframe id="fa" class="buf on" title="Dalle"></iframe><iframe id="fb" class="buf" title="Dalle"></iframe>
+<iframe name="dvh" id="dvh" class="lay" title="Journées passées"></iframe><iframe name="dvl" id="dvl" class="hid" tabindex="-1" aria-hidden="true"></iframe><iframe name="dvc" id="dvc" class="hid" tabindex="-1" aria-hidden="true"></iframe><iframe name="dvr" id="dvr" class="hid" tabindex="-1" aria-hidden="true"></iframe>
+<iframe id="pair" title="Jumelage"></iframe>
+<div id="ov"><div class="i">🔔</div><div class="t" id="ovt">Toucher pour démarrer la Dalle</div><button id="go">Démarrer (avec le son)</button><small>Laisser l’iPad branché et allumé (Réglages › Luminosité et affichage › Verrouillage automatique : Jamais), volume monté, mode silencieux désactivé.</small></div>
+<div id="st" hidden></div>
+<button id="mb" aria-label="Menu">⋯</button>
+<div id="menu"><div class="box"><h3>Dalle Ti-Coq</h3><p id="minfo"></p>
+<button id="mtest">🔊 Tester le son</button><button id="mrel">↻ Recharger maintenant</button><button id="mun" class="red">Retirer le jumelage</button><button id="mclose">Fermer</button></div></div>
+<script src="app.js"></script>
+</body></html>
