@@ -4,7 +4,7 @@
    16 h Caisse 1 (souper) ouverte + Caisse 2 (PM) fermée et ré-ouverte (veillée) · 20 h Caisse 1 fermée · 22 h Caisse 2 fermée.
    Les règles sont dans le serveur (backend/ticoq-caisseapp.js) ; l'app demande l'état chaque minute. */
 'use strict';
-const VERSION = '1.0.2';
+const VERSION = '1.1.0';
 const API = 'https://www.ti-coq.com/_functions/caisseapp';
 const PAGE = 'https://www.ti-coq.com/caisse';
 const STORES = [['stl', 'St-Louis-de-France'], ['cap', 'Cap-de-la-Madeleine'], ['bel', 'Bellefeuille'], ['j23', 'Jean-XXIII']];
@@ -23,7 +23,7 @@ const tok = () => LS.get('tcc_t');
 
 // ---------- Jumelage ----------
 function showPair() {
-  ['start', 'alarm', 'dot', 'menu', 'frame'].forEach((i) => $(i).classList.add('hide'));
+  ['start', 'alarm', 'dot', 'menu', 'frame', 'gerBtn', 'gwrap', 'gerTop', 'gerAsk'].forEach((i) => $(i).classList.add('hide'));
   $('pair').classList.remove('hide');
   $('stores').innerHTML = STORES.map((s) => '<button data-st="' + s[0] + '" class="' + (S.st === s[0] ? 'on' : '') + '">' + s[1] + '</button>').join('');
 }
@@ -186,6 +186,65 @@ function feedEmbed() {
 }
 $('frame').addEventListener('load', () => { S.embedOk = false; let n = 0; clearInterval(S.feedT); S.feedT = setInterval(() => { feedEmbed(); if (++n > 30) clearInterval(S.feedT); }, 2000); });
 
+// ---------- Accès gérant : console de gestion de la succursale (code du gérant demandé à chaque fois) ----------
+// L'iPad reste verrouillé en paysage pour la caisse ; la console du gérant s'affiche « en portrait » (tournée de 90°) :
+// on tourne l'iPad et la console est droite. « ↻ Tourner » change le sens (gardé sur l'iPad).
+const GPAGE = 'https://www.ti-coq.com/gestion';
+const GER_MAX = 30 * 60 * 1000; // retour automatique à la caisse après 30 minutes
+function postFrames(ifr, msg) { try { const w = ifr.contentWindow; for (let i = 0; i < w.frames.length; i++) { try { w.frames[i].postMessage(msg, EMBED_O); } catch (x) {} } } catch (x) {} }
+function gerLogin() { if (S.gCode) postFrames($('gframe'), { tc: 'gestapp-login', st: LS.get('tcc_st'), code: S.gCode }); }
+function gerLayout() {
+  const g = $('gwrap'), t = $('gerTop'), r = LS.get('tcc_rot') || 'cw';
+  const land = window.innerWidth > window.innerHeight;
+  g.classList.toggle('rot', land); g.classList.toggle('cw', land && r === 'cw'); g.classList.toggle('ccw', land && r === 'ccw');
+  g.style.setProperty('--gw', g.clientWidth + 'px'); g.style.setProperty('--gh', g.clientHeight + 'px');
+  t.className = (t.classList.contains('hide') ? 'hide ' : '') + (land ? r : 'flat');
+}
+window.addEventListener('resize', () => { if (S.gOk) gerLayout(); });
+function gerFail(t) {
+  S.gCode = null; clearInterval(S.gT); clearTimeout(S.gTo);
+  $('gframe').src = 'about:blank'; $('gwrap').classList.add('hide');
+  $('gerErr').textContent = t; $('gerGo').disabled = false;
+}
+$('gerBtn').addEventListener('click', () => {
+  $('gerCode').value = ''; $('gerErr').textContent = ''; $('gerGo').disabled = false;
+  $('gerSub').textContent = 'Console du gérant — ' + (LS.get('tcc_name') || '') + '. Entre ton code de gérant.';
+  $('gerAsk').classList.remove('hide'); setTimeout(() => $('gerCode').focus(), 80);
+});
+$('gerCancel').addEventListener('click', () => { gerFail(''); $('gerAsk').classList.add('hide'); });
+$('gerCode').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('gerGo').click(); });
+$('gerGo').addEventListener('click', () => {
+  const code = $('gerCode').value.trim();
+  if (!code) { $('gerErr').textContent = 'Entre ton code.'; return; }
+  S.gCode = code; S.gOk = false; $('gerGo').disabled = true; $('gerErr').textContent = 'Vérification…';
+  $('gframe').src = GPAGE + '?r=' + Date.now();
+  let n = 0; clearInterval(S.gT); S.gT = setInterval(() => { gerLogin(); if (++n > 15) { clearInterval(S.gT); if (!S.gOk) gerFail('La console ne répond pas. Vérifie la connexion et réessaie.'); } }, 3000);
+});
+function gerShow() {
+  S.gOk = true; S.gCode = null; clearInterval(S.gT);
+  $('gerAsk').classList.add('hide'); $('gerCode').value = '';
+  $('gwrap').classList.remove('hide'); $('gerTop').classList.remove('hide'); $('gerBtn').classList.add('hide'); $('dot').classList.add('hide');
+  gerLayout();
+  clearTimeout(S.gTo); S.gTo = setTimeout(gerBack, GER_MAX);
+}
+function gerBack() {
+  clearTimeout(S.gTo); clearInterval(S.gT); S.gCode = null;
+  if (S.gOk) postFrames($('gframe'), { tc: 'gestapp-logout' });
+  S.gOk = false;
+  setTimeout(() => { $('gframe').src = 'about:blank'; }, 400);
+  $('gwrap').classList.add('hide'); $('gerTop').classList.add('hide');
+  if (tok()) { $('gerBtn').classList.remove('hide'); $('dot').classList.remove('hide'); }
+}
+$('gerBack').addEventListener('click', gerBack);
+$('gerRot').addEventListener('click', () => { LS.set('tcc_rot', (LS.get('tcc_rot') || 'cw') === 'cw' ? 'ccw' : 'cw'); gerLayout(); });
+window.addEventListener('message', (e) => {
+  if (e.origin !== EMBED_O || !e.data) return;
+  const m = e.data;
+  if (m.tc === 'gestapp-ready') gerLogin();
+  else if (m.tc === 'gestapp-ok' && !S.gOk && !$('gerAsk').classList.contains('hide')) gerShow();
+  else if (m.tc === 'gestapp-err' && S.gCode) gerFail(m.err || 'Code refusé');
+});
+
 // ---------- Démarrage ----------
 function begin() {
   if (S.started) return;
@@ -204,12 +263,14 @@ function boot() {
   $('frame').src = PAGE;
   $('frame').classList.remove('hide');
   $('dot').classList.remove('hide');
+  $('gerBtn').classList.remove('hide');
   $('startSub').textContent = (LS.get('tcc_name') || '') + ' — les alarmes de la caisse (son et notifications) s’activent.';
   $('start').classList.remove('hide');
   clearInterval(S.pollT); S.pollT = setInterval(poll, 60000);
   poll();
 }
 document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden' && (S.gOk || S.gCode)) gerBack(); // l'iPad quitte l'app : la console du gérant se ferme
   if (document.visibilityState === 'visible' && tok()) {
     poll();
     // au retour (iPad réveillé) : un toucher est requis de nouveau pour le son
