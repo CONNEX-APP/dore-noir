@@ -4,7 +4,7 @@
    16 h Caisse 1 (souper) ouverte + Caisse 2 (PM) fermée et ré-ouverte (veillée) · 20 h Caisse 1 fermée · 22 h Caisse 2 fermée.
    Les règles sont dans le serveur (backend/ticoq-caisseapp.js) ; l'app demande l'état chaque minute. */
 'use strict';
-const VERSION = '1.0.0';
+const VERSION = '1.0.1';
 const API = 'https://www.ti-coq.com/_functions/caisseapp';
 const PAGE = 'https://www.ti-coq.com/caisse';
 const STORES = [['stl', 'St-Louis-de-France'], ['cap', 'Cap-de-la-Madeleine'], ['bel', 'Bellefeuille'], ['j23', 'Jean-XXIII']];
@@ -86,7 +86,7 @@ function render() {
     try { if (!A.length) speechSynthesis.cancel(); } catch (e) {}
   }
 }
-$('alarmOk').addEventListener('click', () => { S.snoozeUntil = Date.now() + SNOOZE; try { speechSynthesis.cancel(); } catch (e) {} render(); setTimeout(render, SNOOZE + 500); });
+$('alarmOk').addEventListener('click', () => { begin(); S.snoozeUntil = Date.now() + SNOOZE; try { speechSynthesis.cancel(); } catch (e) {} render(); setTimeout(render, SNOOZE + 500); });
 
 async function poll() {
   if (!tok()) return;
@@ -166,6 +166,8 @@ function begin() {
   $('start').classList.add('hide');
   if (!LS.get('tcc_sub')) askNotif().then((r) => { if (r === 'refus') toast('Notifications refusées : Réglages › Notifications › Caisse.', true); });
   try { if (navigator.wakeLock) navigator.wakeLock.request('screen').catch(() => {}); } catch (e) {}
+  const L = (S.state && S.state.actives) || [];
+  if (L.length && Date.now() >= S.snoozeUntil) ringOnce(L.map((a) => a.msg));
   poll();
 }
 $('start').addEventListener('click', begin);

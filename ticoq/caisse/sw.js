@@ -1,5 +1,5 @@
 /* Service worker — Caisse Ti-Coq (iPad Caisse) */
-const VERSION = '1.0.0';
+const VERSION = '1.0.1';
 const APP_CACHE = 'tccaisse-' + VERSION;
 const SHELL = ['./', 'index.html', 'app.js', 'manifest.webmanifest', '../icons/icon-192.png', '../icons/apple-touch-icon.png'];
 
