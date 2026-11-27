@@ -4,7 +4,7 @@
    16 h Caisse 1 (souper) ouverte + Caisse 2 (PM) fermée et ré-ouverte (veillée) · 20 h Caisse 1 fermée · 22 h Caisse 2 fermée.
    Les règles sont dans le serveur (backend/ticoq-caisseapp.js) ; l'app demande l'état chaque minute. */
 'use strict';
-const VERSION = '1.0.1';
+const VERSION = '1.0.2';
 const API = 'https://www.ti-coq.com/_functions/caisseapp';
 const PAGE = 'https://www.ti-coq.com/caisse';
 const STORES = [['stl', 'St-Louis-de-France'], ['cap', 'Cap-de-la-Madeleine'], ['bel', 'Bellefeuille'], ['j23', 'Jean-XXIII']];
@@ -34,7 +34,7 @@ $('pairBtn').addEventListener('click', async () => {
   try {
     const r = await api({ a: 'pair', st: S.st, code: $('code').value, dev: navigator.userAgent });
     if (!r.ok) { $('pairErr').textContent = r.error || 'Refusé'; return; }
-    LS.set('tcc_t', r.t); LS.set('tcc_st', r.st); LS.set('tcc_name', r.name); $('code').value = '';
+    LS.set('tcc_t', r.t); LS.set('tcc_st', r.st); LS.set('tcc_name', r.name); LS.set('tcc_g', $('code').value.trim()); LS.set('tcc_gst', r.st); $('code').value = '';
     $('pair').classList.add('hide'); boot(true);
   } catch (e) { $('pairErr').textContent = 'Pas de connexion : ' + e.message; }
 });
@@ -135,7 +135,7 @@ function menuHtml() {
     '<div class="ln" style="color:var(--mut)">Notifications : ' + np + '</div>' +
     (S.lastErr ? '<div class="ln" style="color:#ff8a8d">Serveur : ' + S.lastErr + '</div>' : '') +
     '<div class="ln" style="color:var(--mut)">Alarmes : 10 h, 11 h, 13 h, 16 h, 20 h, 22 h · v' + VERSION + '</div>' +
-    '<button class="btn sec" data-m="notif">🔔 Activer / tester les notifications</button>' +
+    '<button class="btn sec" data-m="notif">🔔 Tester l’alarme et les notifications</button>' +
     '<button class="btn sec" data-m="reload">↻ Recharger la caisse</button>' +
     '<button class="btn sec" data-m="unpair" style="border-color:#D7262B;color:#ff8a8d">Déjumeler cet iPad</button>';
 }
@@ -146,10 +146,21 @@ $('menu').addEventListener('click', async (e) => {
   if (k === 'reload') { $('frame').src = PAGE + '?r=' + Date.now(); $('menu').classList.add('hide'); }
   if (k === 'notif') {
     audioUnlock();
+    $('menu').classList.add('hide');
+    // alarme de test à l'écran (son + voix)
+    $('alarmMsg').innerHTML = '<div>TEST — l’alarme de la caisse fonctionne</div>';
+    $('alarm').classList.remove('hide'); ringOnce(['Test de l’alarme de la caisse']);
+    setTimeout(() => { if (!((S.state && S.state.actives) || []).length) $('alarm').classList.add('hide'); }, 9000);
     const r = await askNotif();
-    if (r === 'ok') { const t = await api({ a: 'test', t: tok() }); toast(t.ok ? 'Notification de test envoyée 🔔' : 'Test refusé : ' + t.error, !t.ok); }
-    else toast(r === 'non' ? 'Notifications pas offertes ici : installe l’app sur l’écran d’accueil (Partager › Sur l’écran d’accueil).' : r === 'refus' ? 'Notifications refusées : Réglages › Notifications › Caisse.' : 'Erreur : ' + r, true);
-    $('menu').innerHTML = menuHtml();
+    if (r === 'ok') {
+      toast('Ferme l’app maintenant : la notification de test arrive dans 8 secondes.');
+      const t = await api({ a: 'test', t: tok(), delay: 8 });
+      const codes = (t.res || []).join(', ');
+      if (!t.ok) toast('Test refusé : ' + t.error, true);
+      else if (!t.n) { LS.del('tcc_sub'); toast('Cet iPad n’est pas inscrit aux notifications. Touche encore « Activer / tester ».', true); }
+      else if ((t.res || []).every((c) => c === 201 || c === 200)) toast('Notification envoyée ✓ (Apple a accepté : ' + codes + ')');
+      else toast('Apple a refusé la notification (' + codes + '). Envoie une capture à Claude.', true);
+    } else toast(r === 'non' ? 'Notifications pas offertes ici : ouvre l’app par son icône sur l’écran d’accueil (iPadOS 16.4 ou plus).' : r === 'refus' ? 'Notifications refusées : Réglages › Notifications › Caisse › Autoriser.' : 'Erreur : ' + r, true);
   }
   if (k === 'unpair') {
     if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = 'Toucher encore pour confirmer'; return; }
@@ -157,6 +168,23 @@ $('menu').addEventListener('click', async (e) => {
     ['tcc_t', 'tcc_st', 'tcc_name', 'tcc_sub'].forEach(LS.del); location.reload();
   }
 });
+
+// ---------- Jumelage de la page Caisse (Safari efface sa mémoire dans l'app : l'app le lui redonne) ----------
+const EMBED_O = 'https://www-ti-coq-com.filesusr.com';
+window.addEventListener('message', (e) => {
+  if (e.origin !== EMBED_O) return;
+  const m = e.data;
+  if (m && m.tc === 'caisseapp-paired' && m.g) { LS.set('tcc_g', m.g); LS.set('tcc_gst', m.st || ''); S.embedOk = true; }
+});
+function feedEmbed() {
+  const g = LS.get('tcc_g'), st = LS.get('tcc_gst') || LS.get('tcc_st');
+  if (!g || !st) return;
+  try {
+    const w = $('frame').contentWindow;
+    for (let i = 0; i < w.frames.length; i++) { try { w.frames[i].postMessage({ tc: 'caisseapp-pair', st, g }, EMBED_O); } catch (x) {} }
+  } catch (x) {}
+}
+$('frame').addEventListener('load', () => { S.embedOk = false; let n = 0; clearInterval(S.feedT); S.feedT = setInterval(() => { feedEmbed(); if (++n > 30) clearInterval(S.feedT); }, 2000); });
 
 // ---------- Démarrage ----------
 function begin() {
